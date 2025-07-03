@@ -1,0 +1,225 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Notes</title>
+  <!-- your existing CSS -->
+  <link rel="stylesheet" href="assets/css/style.css" />
+  <style>
+    /* ——— Global resets ——— */
+    body {
+      font-family: Arial, sans-serif;
+      background: #f8f9fa;
+      margin: 0;
+      padding: 0;
+    }
+
+    /* ——— Grid container ——— */
+    .notes-container {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+      gap: 1rem;
+      max-width: 1600px;
+      margin: 2rem auto;
+      padding: 0 1rem;
+    }
+
+    /* ——— Cards ——— */
+    .note-card {
+      display: flex;
+      flex-direction: column;
+      background: #fff;
+      border-radius: 8px;
+      box-shadow: 0 2px 12px rgba(0,0,0,0.05),
+                  0 1px 4px rgba(0,0,0,0.02);
+      border-left: 4px solid #0077cc;
+      padding: 0.75rem;
+      box-sizing: border-box;
+      transition: box-shadow 0.2s;
+      min-height: 8rem;
+      max-height: 24rem;
+    }
+    .note-card:hover {
+      box-shadow: 0 6px 24px rgba(0,0,0,0.1),
+                  0 2px 8px rgba(0,0,0,0.04);
+    }
+
+    .note-meta {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      gap: 0.6rem;
+      margin-bottom: 0.5rem;
+      flex-shrink: 0;
+    }
+    .note-title {
+      font-weight: 700;
+      font-size: 1rem;
+      color: #222;
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+    }
+    .note-title::before {
+      content: '\1F4D1'; /* 📑 */
+      font-size: 0.95rem;
+      color: #0077cc;
+    }
+    .note-date {
+      color: #0077cc;
+      font-size: 0.8rem;
+      display: flex;
+      align-items: center;
+      gap: 0.4rem;
+    }
+    .note-date::before {
+      content: '\1F4C5'; /* 📅 */
+      font-size: 0.9rem;
+      color: #0077cc;
+    }
+
+    /* ——— Content clamp + toggle ——— */
+    .note-content {
+      font-size: 0.9rem;
+      color: #333;
+      line-height: 1.4;
+      white-space: pre-line;
+      word-break: break-word;
+      overflow: hidden;
+      transition: max-height 0.3s ease;
+      max-height: 7em; /* ~5 lines */
+    }
+    .note-card.expanded .note-content {
+      max-height: none;
+    }
+    .read-more {
+      margin-top: 0.5rem;
+      font-size: 0.85rem;
+      color: #0077cc;
+      text-decoration: none;
+      cursor: pointer;
+      flex-shrink: 0;
+    }
+
+    .loading, .error {
+      text-align: center;
+      color: #888;
+      margin: 2rem 0;
+      font-size: 1rem;
+    }
+
+    footer {
+      text-align: center;
+      font-size: 0.9rem;
+      padding: 2rem 1rem;
+      background: #f0f0f0;
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <nav>
+      <ul>
+        <li><a href="index.html">Home</a></li>
+        <li><a href="blog.html">Blog</a></li>
+        <li><a href="portfolio.html">Portfolio</a></li>
+        <li><a href="notes.html">Notes</a></li>
+      </ul>
+    </nav>
+  </header>
+
+  <main>
+    <div class="notes-container" id="notes-container">
+      <div class="loading" id="loading">Loading notes...</div>
+      <div class="error" id="error" style="display:none;"></div>
+    </div>
+  </main>
+
+  <footer>
+    <p>&copy; 2025 Sunny. All rights reserved.</p>
+    <a href="#">Imprint</a> | <a href="#">Privacy Policy</a>
+  </footer>
+
+  <script>
+    const SHEET_ID       = '13YZ0bh7e0Pxnyj2psdXrJVlBIBtPwD_rTX7Ag9RmlCg';
+    const notesContainer = document.getElementById('notes-container');
+    const loadingDiv     = document.getElementById('loading');
+    const errorDiv       = document.getElementById('error');
+
+    window.processNotes = function(response) {
+      try {
+        const rows = response.table.rows || [];
+        loadingDiv.style.display = 'none';
+        if (!rows.length) throw new Error('No notes found.');
+
+        rows.forEach(row => {
+          const note = {};
+          response.table.cols.forEach((col, i) => {
+            const cell = row.c[i];
+            note[col.label] = cell ? (cell.f || cell.v) : '';
+          });
+
+          const card = document.createElement('div');
+          card.className = 'note-card';
+
+          const meta = document.createElement('div');
+          meta.className = 'note-meta';
+          if (note.Title) {
+            const h = document.createElement('div');
+            h.className = 'note-title';
+            h.textContent = note.Title;
+            meta.appendChild(h);
+          }
+          if (note.Date) {
+            const d = document.createElement('span');
+            d.className = 'note-date';
+            d.textContent = note.Date;
+            meta.appendChild(d);
+          }
+          card.appendChild(meta);
+
+          if (note.Content) {
+            const c = document.createElement('div');
+            c.className = 'note-content';
+            c.textContent = note.Content;
+            card.appendChild(c);
+
+            if (note.Content.length > 200) {
+              const more = document.createElement('a');
+              more.className = 'read-more';
+              more.textContent = 'Read more';
+              more.addEventListener('click', e => {
+                e.preventDefault();
+                card.classList.toggle('expanded');
+                more.textContent = card.classList.contains('expanded')
+                  ? 'Read less'
+                  : 'Read more';
+              });
+              card.appendChild(more);
+            }
+          }
+
+          notesContainer.appendChild(card);
+        });
+      } catch (err) {
+        loadingDiv.style.display = 'none';
+        errorDiv.style.display = 'block';
+        errorDiv.textContent = 'Failed to load notes: ' + err.message;
+      }
+    };
+
+    (function loadJSONP() {
+      const script = document.createElement('script');
+      script.src = `https://docs.google.com/spreadsheets/d/${SHEET_ID}/gviz/tq?` +
+                   `tqx=out:json;responseHandler:processNotes`;
+      script.onerror = () => {
+        loadingDiv.style.display = 'none';
+        errorDiv.style.display = 'block';
+        errorDiv.textContent = 'Failed to load notes: network error';
+      };
+      document.body.appendChild(script);
+    })();
+  </script>
+</body>
+</html>

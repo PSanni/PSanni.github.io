@@ -1,0 +1,74 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Apple's Reasoning Models Paper: Why I'm Not Convinced</title>
+  <link rel="stylesheet" href="../assets/css/style.css">
+</head>
+<body>
+  <header>
+    <nav>
+      <ul>
+        <li><a href="../index.html">Home</a></li>
+        <li><a href="../blog.html">Blog</a></li>
+        <li><a href="../portfolio.html">Portfolio</a></li>
+      </ul>
+    </nav>
+  </header>
+  <main>
+    <article class="blog-post">
+      <h1>Apple's Reasoning Models Paper: Why I'm Not Convinced</h1>
+      <p class="date">June 2025</p>
+      <p>In early June 2025, Apple released a research paper titled <strong>The Illusion of Thinking: Understanding the Strengths and Limitations of Reasoning Models via the Lens of Problem Complexity</strong>. Many have interpreted this paper as evidence that reasoning models don't genuinely "reason." While I don't subscribe to the idea that language models are progressing toward superintelligence, I also found myself largely unimpressed by the paper's approach and conclusions. So what exactly does it demonstrate and what should we make of it?</p>
+      <h2>What the Paper Claims</h2>
+      <p>Apple's paper begins by arguing that current benchmarks for reasoning like mathematics and coding tasks are flawed. The authors point out two main problems:</p>
+      <ul>
+        <li>These benchmarks are likely contaminated with training data.</li>
+        <li>It's difficult to control for complexity in such tasks, making proper evaluation challenging.</li>
+      </ul>
+      <p>To work around these issues, Apple evaluates models using synthetic puzzle environments, specifically different versions of the Tower of Hanoi problem. The complexity ranges from simple one disk puzzles to significantly more difficult twenty disk ones. They compare "reasoning" models (like DeepSeek-R1) with their non-reasoning counterparts (like DeepSeek-V3), and the performance follows a consistent pattern:</p>
+      <ul>
+        <li>For simple puzzles, non-reasoning models perform as well or better, as reasoning models occasionally overcomplicate things.</li>
+        <li>For medium difficulty problems, reasoning models are clearly more successful.</li>
+        <li>For high complexity puzzles, both models fail reasoning models included, no matter how much computational effort is allowed.</li>
+      </ul>
+      <p>Internal model traces support these findings: trivial problems are solved almost instantly, moderate ones require more thought, and the most complex ones go unsolved.</p>
+      <p>The paper notes something peculiar: when the difficulty surpasses the model's capacity, it doesn't keep trying, it stops reasoning entirely. It essentially gives up.</p>
+      <p>Apple even tries to improve performance by providing the correct problem solving algorithm, but this only leads to a marginal improvement just enough to handle one additional disk in some cases.</p>
+      <p>From this, the paper draws three major conclusions:</p>
+      <ul>
+        <li>Reasoning models don't generalize well once a certain complexity threshold is reached.</li>
+        <li>There may be a fundamental computational limit that prevents further reasoning.</li>
+        <li>These models are not inherently good at computational reasoning, since even explicit instructions don't help much.</li>
+      </ul>
+      <h2>Why I Disagree</h2>
+      <h3>Puzzle-Based Evaluation is Misleading</h3>
+      <p>The Tower of Hanoi might be scalable in complexity, but that doesn't automatically make it a strong proxy for reasoning ability. If benchmark contamination is a concern, why choose a famous, heavily studied puzzle that is very likely part of the training data?</p>
+      <p>Given how common the Tower of Hanoi algorithm is, it's unsurprising that providing the algorithm didn't improve model performance much it already knows the method. Moreover, reasoning models have been optimized for domains like math and programming, not abstract toy puzzles. They may have developed specialized internal tools for those domains that don't transfer well to these artificial tasks.</p>
+      <p>The ease of scaling Tower of Hanoi complexity doesn't justify its selection. That feels like a classic example of the "streetlight effect" choosing what's easy to measure, not what's most relevant.</p>
+      <h3>Is the Complexity Threshold Real or Strategic?</h3>
+      <p>Let's assume Apple's results are accurate and representative. That doesn't mean reasoning fails due to incapacity. I ran some of Apple's prompts through DeepSeek-R1 and noticed something telling: the model chooses not to pursue all the steps. Faced with a 10-disk problem requiring over a thousand moves it immediately recognizes the difficulty and searches for a shortcut instead of brute forcing a solution.</p>
+      <p>Even with simpler puzzles, the model expresses hesitation: it "complains" about how tedious it will be to walk through the entire process. This suggests that the model isn't failing because it can't reason through all the steps it's opting not to because it recognizes how impractical the task is.</p>
+      <p>So what's really being tested at higher complexity isn't whether the model can follow the algorithm, but whether it can find a clever way to avoid having to.</p>
+      <h3>Does Hitting a Wall Mean No Reasoning?</h3>
+      <p>Even if I concede all of Apple's points puzzles are fair tests, models hit a hard limit, and complexity breaks their reasoning, the conclusion still doesn't hold water. Struggling with a task requiring a thousand steps doesn't invalidate earlier reasoning.</p>
+      <p>After all, most humans couldn't manually work out 1023 steps of the Tower of Hanoi puzzle either. That doesn't mean they're incapable of reasoning it just reflects limits in patience or working memory.</p>
+      <p>Reasoning through a handful of steps is still reasoning. Failure to continue indefinitely doesn't negate what came before. The act of giving up isn't evidence that reasoning never occurred it's evidence of practical constraint.</p>
+      <p>This might be an overreaction to the discourse surrounding the paper rather than to the paper itself, which doesn't explicitly state that models "can't really reason." But the way it's being interpreted online warrants clarification.</p>
+      <h2>Final Thoughts</h2>
+      <p>It's also important to remember that reasoning traces no matter how detailed or structured are not the sole definition of intelligence. True intelligence is a complex interplay of multiple faculties: memory, access to external tools, control over attention, and the ability to manage and compress uncertainty (entropy) in information.</p>
+      <p>Expecting a language model to calculate something like 10 + 65 a thousand times over without assistance is misguided. Even humans reach for a calculator when dealing with large volumes of repetitive computation. That doesn't suggest we're incapable of reasoning it just means we're practical. We know when to delegate certain tasks to tools.</p>
+      <p>In the same way, when a model "gives up" on solving a thousand step puzzle, that's not evidence of failure, it may reflect an implicit recognition that the task is beyond its current working memory or practical execution window. What matters is what the model did before giving up. Those early steps still reflect reasoning within meaningful bounds.</p>
+      <p>Ultimately, reasoning isn't an all or nothing phenomenon. It's a spectrum, and giving up under high complexity doesn't negate the value of reasoning that came before.</p>
+      <h2>What the Paper Gets Right</h2>
+      <p>That said, the paper does raise a few interesting points. For instance, the observation that reasoning models can "overthink" and perform worse on simple tasks is fascinating. And the idea that models behave differently in three regimes simple (easy), intermediate (solvable with effort), and complex (they give up) is worth exploring further.</p>
+      <p>I'd love to see future work focused on improving persistence in reasoning models. Could they be trained or prompted to follow through tedious algorithms without giving up?</p>
+    </article>
+  </main>
+  <footer>
+    <p>&copy; 2025 Sunny. All rights reserved.</p>
+    <a href="#">Imprint</a> | <a href="#">Privacy Policy</a>
+  </footer>
+</body>
+</html> 
