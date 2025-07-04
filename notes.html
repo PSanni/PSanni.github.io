@@ -4,7 +4,6 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
   <title>Notes</title>
-  <!-- your existing CSS -->
   <link rel="stylesheet" href="assets/css/style.css" />
   <style>
     /* ——— Global resets ——— */
@@ -39,6 +38,7 @@
       transition: box-shadow 0.2s;
       min-height: 8rem;
       max-height: 24rem;
+      overflow: hidden;               /* clip anything beyond 24rem */
     }
     .note-card:hover {
       box-shadow: 0 6px 24px rgba(0,0,0,0.1),
@@ -46,12 +46,12 @@
     }
 
     .note-meta {
+      flex-shrink: 0;
       display: flex;
       flex-wrap: wrap;
       align-items: center;
       gap: 0.6rem;
       margin-bottom: 0.5rem;
-      flex-shrink: 0;
     }
     .note-title {
       font-weight: 700;
@@ -79,7 +79,7 @@
       color: #0077cc;
     }
 
-    /* ——— Content clamp + toggle ——— */
+    /* ——— Content clamp + toggle + scroll ——— */
     .note-content {
       font-size: 0.9rem;
       color: #333;
@@ -88,10 +88,7 @@
       word-break: break-word;
       overflow: hidden;
       transition: max-height 0.3s ease;
-      max-height: 7em; /* ~5 lines */
-    }
-    .note-card.expanded .note-content {
-      max-height: none;
+      max-height: 7em;               /* ~5 lines */
     }
     .read-more {
       margin-top: 0.5rem;
@@ -100,6 +97,14 @@
       text-decoration: none;
       cursor: pointer;
       flex-shrink: 0;
+    }
+
+    /* ——— Expanded state: clamp card & scroll inner content ——— */
+    .note-card.expanded .note-content {
+      max-height: none;             /* remove the 5-line clamp */
+      flex: 1 1 auto;               /* fill remaining card height */
+      overflow-y: auto;             /* scroll if still too big */
+      padding-right: 0.5rem;        /* room for scrollbar */
     }
 
     .loading, .error {
