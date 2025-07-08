@@ -1,0 +1,1435 @@
+<!DOCTYPE html><html lang="en"><head>
+    <meta charset="UTF-8"/>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+    <title>Context Engineering: Optimizing LLM Performance</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com"/>
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin=""/>
+    <link href="https://fonts.googleapis.com/css2?family=Crimson+Text:ital,wght@0,400;0,600;1,400&amp;family=Inter:wght@300;400;500;600;700&amp;display=swap" rel="stylesheet"/>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css"/>
+    <style>
+        :root {
+            --primary: #0f766e;
+            --secondary: #d97706;
+            --accent: #7c3aed;
+            --neutral: #374151;
+            --base-100: #ffffff;
+            --base-200: #f8fafc;
+            --base-300: #e2e8f0;
+        }
+        
+        body {
+            font-family: 'Inter', sans-serif;
+            line-height: 1.7;
+            color: var(--neutral);
+        }
+        
+        .serif {
+            font-family: 'Crimson Text', serif;
+        }
+        
+        .toc-sidebar {
+            position: fixed;
+            left: 0;
+            top: 0;
+            width: 280px;
+            height: 100vh;
+            background: linear-gradient(135deg, #f8fafc 0%, #e2e8f0 100%);
+            border-right: 1px solid #cbd5e1;
+            z-index: 1000;
+            overflow-y: auto;
+            padding: 2rem 1.5rem;
+        }
+        
+        .main-content {
+            margin-left: 280px;
+            min-height: 100vh;
+        }
+        
+        .hero-section {
+            background: linear-gradient(135deg, #0f766e 0%, #134e4a 100%);
+            color: white;
+            position: relative;
+            overflow: hidden;
+        }
+        
+        .hero-overlay {
+            position: absolute;
+            inset: 0;
+            background: rgba(15, 118, 110, 0.9);
+            z-index: 1;
+        }
+        
+        .hero-content {
+            position: relative;
+            z-index: 2;
+        }
+        
+        .bento-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr 1fr;
+            gap: 1.5rem;
+            margin-top: 2rem;
+        }
+        
+        .bento-item {
+            background: rgba(255, 255, 255, 0.1);
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            border-radius: 12px;
+            padding: 1.5rem;
+            transition: all 0.3s ease;
+        }
+        
+        .bento-item:hover {
+            transform: translateY(-2px);
+            background: rgba(255, 255, 255, 0.15);
+        }
+        
+        .section-header {
+            border-left: 4px solid var(--primary);
+            padding-left: 1.5rem;
+            margin: 3rem 0 2rem 0;
+        }
+        
+        .code-block {
+            background: #1e293b;
+            color: #e2e8f0;
+            border-radius: 8px;
+            padding: 1.5rem;
+            overflow-x: auto;
+            font-family: 'Monaco', 'Menlo', monospace;
+            font-size: 0.875rem;
+            line-height: 1.6;
+        }
+        
+        .citation {
+            color: var(--primary);
+            text-decoration: none;
+            font-weight: 500;
+            border-bottom: 1px dotted var(--primary);
+        }
+        
+        .citation:hover {
+            color: var(--secondary);
+            border-bottom-color: var(--secondary);
+        }
+        
+        .pull-quote {
+            background: linear-gradient(135deg, #f0fdfa 0%, #ccfbf1 100%);
+            border-left: 4px solid var(--primary);
+            padding: 2rem;
+            margin: 2rem 0;
+            border-radius: 0 8px 8px 0;
+            font-style: italic;
+            font-size: 1.125rem;
+        }
+        
+        .diagram {
+            background: #f8fafc;
+            border: 2px solid #e2e8f0;
+            border-radius: 12px;
+            padding: 2rem;
+            margin: 2rem 0;
+            text-align: center;
+        }
+        
+        .component-card {
+            background: white;
+            border: 1px solid #e2e8f0;
+            border-radius: 12px;
+            padding: 2rem;
+            margin: 1.5rem 0;
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+            transition: all 0.3s ease;
+        }
+        
+        .component-card:hover {
+            box-shadow: 0 10px 25px -3px rgba(0, 0, 0, 0.1);
+            transform: translateY(-2px);
+        }
+        
+        .toc-link {
+            display: block;
+            padding: 0.5rem 0;
+            color: var(--neutral);
+            text-decoration: none;
+            border-bottom: 1px solid transparent;
+            transition: all 0.3s ease;
+        }
+        
+        .toc-link:hover {
+            color: var(--primary);
+            border-bottom-color: var(--primary);
+            padding-left: 0.5rem;
+        }
+        
+        .toc-link.active {
+            color: var(--primary);
+            font-weight: 600;
+            border-left: 3px solid var(--primary);
+            padding-left: 1rem;
+        }
+        
+        @media (max-width: 1024px) {
+            .toc-sidebar {
+                transform: translateX(-100%);
+                transition: transform 0.3s ease;
+            }
+            
+            .toc-sidebar.open {
+                transform: translateX(0);
+            }
+            
+            .main-content {
+                margin-left: 0;
+            }
+            
+            .bento-grid {
+                grid-template-columns: 1fr;
+            }
+        }
+        
+        .chart-container {
+            height: 400px;
+            margin: 2rem 0;
+        }
+        
+        .highlight-box {
+            background: linear-gradient(135deg, #fef3c7 0%, #fde68a 100%);
+            border: 1px solid #f59e0b;
+            border-radius: 8px;
+            padding: 1.5rem;
+            margin: 1.5rem 0;
+        }
+        
+        .data-flow {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin: 2rem 0;
+            flex-wrap: wrap;
+            gap: 1rem;
+        }
+        
+        .flow-step {
+            background: var(--primary);
+            color: white;
+            padding: 1rem 1.5rem;
+            border-radius: 8px;
+            text-align: center;
+            flex: 1;
+            min-width: 120px;
+            position: relative;
+        }
+        
+        .flow-step::after {
+            content: '→';
+            position: absolute;
+            right: -1.5rem;
+            top: 50%;
+            transform: translateY(-50%);
+            color: var(--primary);
+            font-size: 1.5rem;
+            font-weight: bold;
+        }
+        
+        .flow-step:last-child::after {
+            display: none;
+        }
+        
+        @media (max-width: 768px) {
+            .flow-step::after {
+                display: none;
+            }
+            
+            .data-flow {
+                flex-direction: column;
+                align-items: stretch;
+            }
+        }
+    </style>
+  </head>
+
+  <body class="bg-base-100">
+    <!-- Table of Contents Sidebar -->
+    <nav class="toc-sidebar">
+      <div class="mb-8">
+        <h2 class="text-xl font-bold text-primary serif">Contents</h2>
+      </div>
+
+      <div class="space-y-1">
+        <a href="#introduction" class="toc-link">1. Introduction</a>
+        <a href="#defining" class="toc-link text-sm ml-4">1.1 Defining Context Engineering</a>
+        <a href="#importance" class="toc-link text-sm ml-4">1.2 Importance in LLM Applications</a>
+        <a href="#components" class="toc-link text-sm ml-4">1.3 Core Components</a>
+
+        <a href="#rag" class="toc-link">2. Retrieval Augmented Generation</a>
+        <a href="#rag-overview" class="toc-link text-sm ml-4">2.1 RAG Overview</a>
+        <a href="#rag-implementation" class="toc-link text-sm ml-4">2.2 Implementation</a>
+        <a href="#rag-benefits" class="toc-link text-sm ml-4">2.3 Benefits &amp; Limitations</a>
+
+        <a href="#prompts" class="toc-link">3. System Prompt Design</a>
+        <a href="#crafting-prompts" class="toc-link text-sm ml-4">3.1 Crafting Effective Prompts</a>
+        <a href="#prompt-role" class="toc-link text-sm ml-4">3.2 Guiding LLM Behavior</a>
+        <a href="#prompt-examples" class="toc-link text-sm ml-4">3.3 Examples &amp; Best Practices</a>
+
+        <a href="#tools" class="toc-link">4. Tool Integration</a>
+        <a href="#extending-tools" class="toc-link text-sm ml-4">4.1 Extending LLM Capabilities</a>
+        <a href="#react-case" class="toc-link text-sm ml-4">4.2 ReAct Case Study</a>
+        <a href="#tool-considerations" class="toc-link text-sm ml-4">4.3 Integration Considerations</a>
+
+        <a href="#memory" class="toc-link">5. Memory Management</a>
+        <a href="#memory-role" class="toc-link text-sm ml-4">5.1 Role in Conversational AI</a>
+        <a href="#memory-strategies" class="toc-link text-sm ml-4">5.2 Memory Strategies</a>
+        <a href="#memory-implementation" class="toc-link text-sm ml-4">5.3 Implementation</a>
+
+        <a href="#advanced" class="toc-link">6. Advanced Techniques</a>
+        <a href="#fine-tuning" class="toc-link text-sm ml-4">6.1 Fine-tuning vs Context Engineering</a>
+        <a href="#emerging" class="toc-link text-sm ml-4">6.2 Emerging Trends</a>
+        <a href="#challenges" class="toc-link text-sm ml-4">6.3 Challenges &amp; Research</a>
+
+        <a href="#conclusion" class="toc-link">7. Conclusion</a>
+      </div>
+    </nav>
+
+    <!-- Main Content -->
+    <main class="main-content">
+      <!-- Hero Section -->
+      <section class="hero-section min-h-screen flex items-center">
+        <div class="hero-overlay"></div>
+        <img src="https://kimi-web-img.moonshot.cn/img/placeholder-0620/图片13.png" alt="Abstract neural network with interconnected nodes" class="absolute inset-0 w-full h-full object-cover opacity-20" size="wallpaper" aspect="wide" query="abstract neural network background" referrerpolicy="no-referrer"/>
+
+        <div class="hero-content container mx-auto px-4 md:px-8 py-16">
+          <div class="max-w-4xl">
+            <h1 class="text-4xl md:text-5xl lg:text-7xl font-bold serif mb-6 leading-tight">
+              Context Engineering:
+              <span class="italic text-amber-300">Optimizing LLM Performance</span>
+            </h1>
+
+            <p class="text-xl md:text-2xl mb-8 text-blue-100 max-w-3xl">
+              The systematic design and management of the informational environment for Large Language Models,
+              moving beyond simple prompting to a holistic approach for reliable, production-grade AI systems.
+            </p>
+
+            <div class="bento-grid">
+              <div class="bento-item">
+                <i class="fas fa-database text-3xl mb-4 text-amber-300"></i>
+                <h3 class="text-lg font-semibold mb-2">RAG Systems</h3>
+                <p class="text-sm text-blue-100">Dynamic knowledge augmentation through retrieval mechanisms</p>
+              </div>
+
+              <div class="bento-item">
+                <i class="fas fa-memory text-3xl mb-4 text-amber-300"></i>
+                <h3 class="text-lg font-semibold mb-2">Memory Management</h3>
+                <p class="text-sm text-blue-100">Strategic handling of short-term and long-term context</p>
+              </div>
+
+              <div class="bento-item">
+                <i class="fas fa-tools text-3xl mb-4 text-amber-300"></i>
+                <h3 class="text-lg font-semibold mb-2">Tool Integration</h3>
+                <p class="text-sm text-blue-100">Extending LLM capabilities with external functions</p>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- Introduction Section -->
+      <section id="introduction" class="py-16 px-8">
+        <div class="container mx-auto max-w-4xl">
+          <div class="section-header">
+            <h2 class="text-4xl font-bold serif text-primary">Introduction to Context Engineering</h2>
+          </div>
+
+          <div id="defining" class="component-card">
+            <h3 class="text-2xl font-semibold mb-4 text-primary">Defining Context Engineering</h3>
+            <p class="mb-4">
+              Context engineering is an <strong>emerging discipline focused on the systematic design and optimization of the informational environment</strong>
+              in which Large Language Models (LLMs) and other advanced AI models operate <a href="#ref-1" class="citation">[1]</a>,
+              <a href="#ref-3" class="citation">[3]</a>. It moves beyond the art of crafting individual prompts to encompass the
+              <strong>entire lifecycle of context management</strong>, including its acquisition, representation, storage, updating, and interaction with the model.
+            </p>
+
+            <div class="pull-quote">
+              &#34;The most capable models underperform not due to inherent flaws, but because they are provided with an incomplete, &#39;half-baked view of the world&#39;&#34;
+              <cite class="block mt-2 text-sm not-italic">— Sundeep Teki</cite>
+            </div>
+
+            <p class="mb-4">
+              This involves a holistic approach to providing LLMs with the necessary background, instructions, tools, and memory to perform tasks effectively
+              and reliably across multiple interactions and complex workflows <a href="#ref-3" class="citation">[3]</a>,
+              <a href="#ref-17" class="citation">[17]</a>. The scope covers everything the model &#34;sees&#34; – from system prompts and user inputs to historical
+              interactions, retrieved knowledge, and available tool definitions.
+            </p>
+          </div>
+
+          <div id="importance" class="component-card">
+            <h3 class="text-2xl font-semibold mb-4 text-primary">Importance in LLM Applications</h3>
+            <p class="mb-4">
+              Context engineering is <strong>crucial for unlocking the full potential of LLMs in real-world applications</strong>,
+              moving them beyond impressive demos to reliable, production-grade systems <a href="#ref-17" class="citation">[17]</a>,
+              <a href="#ref-18" class="citation">[18]</a>. The performance of LLMs is highly sensitive to the context they are provided;
+              even a well-crafted prompt can fail if the underlying context is flawed, incomplete, or poorly managed.
+            </p>
+
+            <div class="highlight-box">
+              <h4 class="font-semibold mb-2 text-amber-800">Key Benefits:</h4>
+              <ul class="list-disc list-inside space-y-1 text-amber-900">
+                <li>Reduced hallucinations and factual inaccuracies</li>
+                <li>Improved coherence over long interactions</li>
+                <li>Access to domain-specific knowledge and tools</li>
+                <li>Enhanced personalization and user experience</li>
+                <li>Cost-effective token usage and computational efficiency</li>
+              </ul>
+            </div>
+          </div>
+
+          <div id="components" class="component-card">
+            <h3 class="text-2xl font-semibold mb-4 text-primary">Core Components</h3>
+            <p class="mb-6">Context engineering is built upon several interconnected pillars that work together to create a comprehensive informational environment:</p>
+
+            <div class="grid md:grid-cols-2 gap-6">
+              <div class="border border-slate-200 rounded-lg p-4">
+                <h4 class="font-semibold text-primary mb-2">Context Architecture</h4>
+                <p class="text-sm">Intentional design of structures for managing context, including tiered memory stores and persistence strategies.</p>
+              </div>
+
+              <div class="border border-slate-200 rounded-lg p-4">
+                <h4 class="font-semibold text-primary mb-2">Context Dynamics</h4>
+                <p class="text-sm">Mechanisms for detecting context drift, relevance scoring, and adaptive context window management.</p>
+              </div>
+
+              <div class="border border-slate-200 rounded-lg p-4">
+                <h4 class="font-semibold text-primary mb-2">Context Interaction</h4>
+                <p class="text-sm">APIs for context manipulation, event-driven updates, and multi-agent context sharing protocols.</p>
+              </div>
+
+              <div class="border border-slate-200 rounded-lg p-4">
+                <h4 class="font-semibold text-primary mb-2">Instructional Context</h4>
+                <p class="text-sm">System prompts, few-shot examples, and task-specific instructions that guide LLM behavior.</p>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- RAG Section -->
+      <section id="rag" class="py-16 px-8 bg-base-200">
+        <div class="container mx-auto max-w-4xl">
+          <div class="section-header">
+            <h2 class="text-4xl font-bold serif text-primary">Retrieval Augmented Generation (RAG)</h2>
+          </div>
+
+          <div id="rag-overview" class="component-card">
+            <h3 class="text-2xl font-semibold mb-4 text-primary">Overview of RAG</h3>
+            <p class="mb-4">
+              Retrieval-Augmented Generation (RAG) is a <strong>foundational pattern within context engineering</strong>
+              that addresses the limitations of LLMs related to static knowledge and hallucinations
+              <a href="#ref-4" class="citation">[4]</a>, <a href="#ref-7" class="citation">[7]</a>. RAG systems
+              <strong>dynamically augment the LLM&#39;s prompt with relevant information retrieved from external knowledge bases</strong>
+              at inference time.
+            </p>
+
+            <div class="data-flow">
+              <div class="flow-step">Indexing</div>
+              <div class="flow-step">Retrieval</div>
+              <div class="flow-step">Augmentation</div>
+              <div class="flow-step">Generation</div>
+            </div>
+
+            <img src="https://kimi-web-img.moonshot.cn/img/placeholder-0620/图片2.png" alt="RAG system architecture showing data flow from documents to LLM" class="w-full rounded-lg border" size="medium" aspect="wide" style="linedrawing" query="Retrieval Augmented Generation architecture" referrerpolicy="no-referrer"/>
+          </div>
+
+          <div id="rag-implementation" class="component-card">
+            <h3 class="text-2xl font-semibold mb-4 text-primary">Implementing RAG: A Code Walkthrough</h3>
+            <p class="mb-4">
+              The following demonstrates a basic RAG implementation using Python, inspired by
+              <a href="#ref-32" class="citation">[32]</a>. This example processes PDF documents using
+              `PyMuPDF` for text extraction, `sentence-transformers` for embeddings, `FAISS` for vector search,
+              and `transformers` for the question-answering LLM.
+            </p>
+
+            <div class="code-block">
+              <pre><code># Setup &amp; Installation
+!pip install -q pypdf PyMuPDF sentence-transformers faiss-cpu transformers
+
+# PDF Text Extraction
+import fitz  # PyMuPDF
+
+def extract_text_from_pdf(pdf_path):
+    doc = fitz.open(pdf_path)
+    text = &#34;&#34;
+    for page in doc:
+        text += page.get_text() + &#34; &#34;
+    return text
+
+# Text Chunking
+def chunk_text(text, chunk_size=300, overlap=50):
+    &#34;&#34;&#34;Splits text into manageable chunks with overlap for continuity.&#34;&#34;&#34;
+    words = text.split()
+    chunks = []
+    for i in range(0, len(words), chunk_size - overlap):
+        chunk = &#39; &#39;.join(words[i:i + chunk_size])
+        chunks.append(chunk)
+    return chunks
+
+# Embeddings &amp; FAISS Index
+from sentence_transformers import SentenceTransformer
+import faiss
+import numpy as np
+
+embedding_model = SentenceTransformer(&#39;all-MiniLM-L6-v2&#39;)
+chunk_embeddings = embedding_model.encode(document_chunks, show_progress_bar=True)
+
+dimension = chunk_embeddings.shape[1]
+index = faiss.IndexFlatIP(dimension)
+index.add(chunk_embeddings.astype(&#39;float32&#39;))
+
+# RAG Pipeline
+def rag_pipeline(query, k=3):
+    # Embed the user query
+    query_embedding = embedding_model.encode([query])
+    
+    # Search the FAISS index
+    D, I = index.search(query_embedding.astype(&#39;float32&#39;), k)
+    
+    # Retrieve the actual text chunks
+    retrieved_chunks = [document_chunks[i] for i in I[0]]
+    context = &#34; &#34;.join(retrieved_chunks)
+    
+    # Use the QA pipeline
+    result = qa_pipeline(question=query, context=context)
+    
+    return result</code></pre>
+            </div>
+          </div>
+
+          <div id="rag-benefits" class="component-card">
+            <h3 class="text-2xl font-semibold mb-4 text-primary">Benefits and Limitations of RAG</h3>
+
+            <div class="grid md:grid-cols-2 gap-6">
+              <div>
+                <h4 class="font-semibold text-green-700 mb-3">Benefits</h4>
+                <ul class="list-disc list-inside space-y-2 text-sm">
+                  <li><strong>Reduced Hallucinations:</strong> Grounds responses in factual information</li>
+                  <li><strong>Up-to-date Information:</strong> Access to dynamic knowledge bases</li>
+                  <li><strong>Domain Expertise:</strong> Specialized knowledge integration</li>
+                  <li><strong>Source Attribution:</strong> Enhanced transparency and trust</li>
+                  <li><strong>Cost-Effective:</strong> Alternative to extensive fine-tuning</li>
+                </ul>
+              </div>
+
+              <div>
+                <h4 class="font-semibold text-red-700 mb-3">Limitations</h4>
+                <ul class="list-disc list-inside space-y-2 text-sm">
+                  <li><strong>Retrieval Quality:</strong> Dependent on embedding and chunking strategies</li>
+                  <li><strong>Context Window Limits:</strong> Constrained by token budgets</li>
+                  <li><strong>Latency:</strong> Multiple processing steps add delay</li>
+                  <li><strong>Knowledge Base Quality:</strong> Only as good as the source data</li>
+                  <li><strong>&#34;Lost in Middle&#34; Problem:</strong> Attention distribution issues</li>
+                </ul>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- System Prompts Section -->
+      <section id="prompts" class="py-16 px-8">
+        <div class="container mx-auto max-w-4xl">
+          <div class="section-header">
+            <h2 class="text-4xl font-bold serif text-primary">System Prompt Design</h2>
+          </div>
+
+          <div id="crafting-prompts" class="component-card">
+            <h3 class="text-2xl font-semibold mb-4 text-primary">Crafting Effective System Prompts</h3>
+            <p class="mb-4">
+              Crafting effective system prompts is a <strong>critical aspect of context engineering</strong>, as these prompts set the foundational context
+              and guide the LLM&#39;s behavior, tone, and capabilities for an entire interaction <a href="#ref-38" class="citation">[38]</a>,
+              <a href="#ref-39" class="citation">[39]</a>. Unlike user prompts which are often transient, system prompts are designed to be more static,
+              defining the LLM&#39;s role, operational constraints, and interaction protocols.
+            </p>
+
+            <div class="highlight-box">
+              <h4 class="font-semibold mb-3 text-amber-800">Key Principles:</h4>
+              <div class="grid md:grid-cols-2 gap-4 text-sm">
+                <div>
+                  <strong>Clarity and Precision:</strong> Instructions should be unambiguous and avoid jargon
+                </div>
+                <div>
+                  <strong>Role Definition:</strong> Clearly define the AI&#39;s persona and responsibilities
+                </div>
+                <div>
+                  <strong>Tool Integration:</strong> Include instructions for tool usage when applicable
+                </div>
+                <div>
+                  <strong>Structured Format:</strong> Use clear delimiters and logical organization
+                </div>
+                <div>
+                  <strong>Avoid Over-constraint:</strong> Balance guidance with flexibility
+                </div>
+                <div>
+                  <strong>Version Control:</strong> Manage prompt evolution systematically
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div id="prompt-role" class="component-card">
+            <h3 class="text-2xl font-semibold mb-4 text-primary">Role of System Prompts in Guiding LLM Behavior</h3>
+            <p class="mb-4">
+              System prompts play a <strong>pivotal role in guiding the behavior of Large Language Models</strong> by establishing the foundational context
+              and operational parameters for their responses <a href="#ref-91" class="citation">[91]</a>, <a href="#ref-92" class="citation">[92]</a>.
+              They act as the primary mechanism for instructing the model on its designated role, the specific task it needs to accomplish,
+              and the manner in which it should approach that task.
+            </p>
+
+            <div class="diagram">
+              <h4 class="font-semibold mb-4">System Prompt Components</h4>
+              <div class="flex flex-wrap justify-center gap-4">
+                <div class="bg-blue-100 px-4 py-2 rounded-lg text-sm">Objective &amp; Persona</div>
+                <div class="bg-green-100 px-4 py-2 rounded-lg text-sm">Clear Instructions</div>
+                <div class="bg-yellow-100 px-4 py-2 rounded-lg text-sm">Constraints</div>
+                <div class="bg-purple-100 px-4 py-2 rounded-lg text-sm">Context</div>
+                <div class="bg-red-100 px-4 py-2 rounded-lg text-sm">Output Format</div>
+                <div class="bg-indigo-100 px-4 py-2 rounded-lg text-sm">Few-shot Examples</div>
+              </div>
+            </div>
+          </div>
+
+          <div id="prompt-examples" class="component-card">
+            <h3 class="text-2xl font-semibold mb-4 text-primary">Examples and Best Practices</h3>
+
+            <div class="code-block mb-6">
+              <pre><code>### System Prompt Example: Research Planner
+
+You are an expert research planner. Your task is to analyze the provided user query and generate an optimal search plan to find relevant information.
+
+## Instructions:
+1. Break down complex research queries into specific search subtasks
+2. For each subtask, identify the most appropriate source types
+3. Consider temporal context and domain focus
+4. Prioritize subtasks based on logical dependencies
+
+## Output Format:
+Return a JSON structure with the following fields for each subtask:
+- id: Unique identifier
+- query: The search query to execute
+- source_type: Type of source to search
+- time_period: Relevant time range
+- domain_focus: Specific domain or field
+- priority: Priority level (1-3)
+
+## Constraints:
+- Do not include personal opinions or assumptions
+- Focus on factual, verifiable information sources
+- Consider multiple perspectives when relevant
+
+## Example Output:
+{
+  &#34;subtasks&#34;: [
+    {
+      &#34;id&#34;: &#34;task_1&#34;,
+      &#34;query&#34;: &#34;impact of AI on healthcare diagnostics&#34;,
+      &#34;source_type&#34;: &#34;academic&#34;,
+      &#34;time_period&#34;: &#34;2018-2024&#34;,
+      &#34;domain_focus&#34;: &#34;medical technology&#34;,
+      &#34;priority&#34;: 1
+    }
+  ]
+}</code></pre>
+            </div>
+
+            <div class="grid md:grid-cols-2 gap-6">
+              <div>
+                <h4 class="font-semibold text-green-700 mb-3">Best Practices</h4>
+                <ul class="list-disc list-inside space-y-2 text-sm">
+                  <li>Place instructions at the beginning</li>
+                  <li>Use clear role definitions</li>
+                  <li>Structure with separators and tags</li>
+                  <li>Provide few-shot examples</li>
+                  <li>Break down complex tasks</li>
+                  <li>Iterate and refine continuously</li>
+                </ul>
+              </div>
+
+              <div>
+                <h4 class="font-semibold text-red-700 mb-3">Common Pitfalls</h4>
+                <ul class="list-disc list-inside space-y-2 text-sm">
+                  <li>Vague or ambiguous instructions</li>
+                  <li>Over-constraining the model</li>
+                  <li>Ignoring output format specification</li>
+                  <li>Missing role definition</li>
+                  <li>Inconsistent structure</li>
+                  <li>Neglecting edge cases</li>
+                </ul>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- Tool Integration Section -->
+      <section id="tools" class="py-16 px-8 bg-base-200">
+        <div class="container mx-auto max-w-4xl">
+          <div class="section-header">
+            <h2 class="text-4xl font-bold serif text-primary">Tool Integration</h2>
+          </div>
+
+          <div id="extending-tools" class="component-card">
+            <h3 class="text-2xl font-semibold mb-4 text-primary">Extending LLM Capabilities with External Tools</h3>
+            <p class="mb-4">
+              Integrating external tools is a <strong>fundamental aspect of context engineering that significantly extends the capabilities of Large Language Models</strong>,
+              enabling them to perform tasks beyond their inherent knowledge and text-generation abilities <a href="#ref-205" class="citation">[205]</a>,
+              <a href="#ref-207" class="citation">[207]</a>. LLMs, by themselves, are powerful pattern recognizers and generators of text, but they lack direct access
+              to real-time information, specific databases, computational tools, or the ability to interact with external systems.
+            </p>
+
+            <img src="https://kimi-web-img.moonshot.cn/img/placeholder-0620/图片20.png" alt="LLM tool integration architecture diagram showing API connections" class="w-full rounded-lg border mb-4" size="large" aspect="wide" style="linedrawing" query="LLM tool integration architecture" referrerpolicy="no-referrer"/>
+
+            <p class="mb-4">
+              Tool integration bridges this gap by allowing LLMs to utilize a predefined set of functions or APIs. These tools can range from simple utilities
+              like a calculator or a current time fetcher to complex systems like search engines, code executors, database query interfaces, or specialized
+              software applications.
+            </p>
+          </div>
+
+          <div id="react-case" class="component-card">
+            <h3 class="text-2xl font-semibold mb-4 text-primary">Case Study: ReAct Paradigm</h3>
+            <p class="mb-4">
+              The <strong>ReAct (Reasoning and Acting) paradigm</strong> demonstrates how LLMs can interleave reasoning steps with actions to solve complex problems
+              <a href="#ref-204" class="citation">[204]</a>. Instead of a single prompt-to-response cycle, ReAct structures the interaction as a series of
+              <strong>&#34;Thought, Action, Observation&#34; loops</strong>.
+            </p>
+
+            <div class="code-block mb-6">
+              <pre><code># Example ReAct Sequence
+
+1. Thought: &#34;I need to find out who the members of Front Row were.&#34;
+2. Action: `Search(&#34;Front Row band members&#34;)`
+3. Observation: &#34;The members of Front Row were Alice, Bob, and Charlie.&#34;
+4. Thought: &#34;I need to find out when Front Row released their final album.&#34;
+5. Action: `Search(&#34;Front Row final album release date&#34;)`
+6. Observation: &#34;Front Row released their final album in 1995.&#34;
+7. Thought: &#34;I need to find the birth years of Alice, Bob, and Charlie.&#34;
+8. Action: `Search(&#34;Alice birth year&#34;)`, `Search(&#34;Bob birth year&#34;)`, `Search(&#34;Charlie birth year&#34;)`
+9. Observation: &#34;Alice was born in 1960.&#34;, &#34;Bob was born in 1955.&#34;, &#34;Charlie was born in 1970.&#34;
+10. Thought: &#34;I need to calculate their ages in 1995. Alice would be 35, Bob would be 40, and Charlie would be 25. Bob was the oldest.&#34;
+11. Action: `Finish(&#34;Bob&#34;)`</code></pre>
+            </div>
+
+            <div class="pull-quote">
+              This iterative process allows the LLM to break down complex problems, use tools to gather necessary information,
+              reason over that information, and build towards a solution through coherent, multi-step reasoning.
+            </div>
+          </div>
+
+          <div id="tool-considerations" class="component-card">
+            <h3 class="text-2xl font-semibold mb-4 text-primary">Considerations for Tool Selection and Integration</h3>
+
+            <div class="grid md:grid-cols-2 gap-6">
+              <div class="space-y-4">
+                <div class="border-l-4 border-primary pl-4">
+                  <h4 class="font-semibold text-primary">Tool Selection</h4>
+                  <p class="text-sm text-gray-600">Choose tools based on application relevance and capability augmentation</p>
+                </div>
+
+                <div class="border-l-4 border-secondary pl-4">
+                  <h4 class="font-semibold text-secondary">Integration Strategy</h4>
+                  <p class="text-sm text-gray-600">Provide clear descriptions and expected input/output formats</p>
+                </div>
+
+                <div class="border-l-4 border-accent pl-4">
+                  <h4 class="font-semibold text-accent">Error Handling</h4>
+                  <p class="text-sm text-gray-600">Graceful failure modes and robust validation mechanisms</p>
+                </div>
+              </div>
+
+              <div class="space-y-4">
+                <div class="border-l-4 border-red-500 pl-4">
+                  <h4 class="font-semibold text-red-700">Security &amp; Access</h4>
+                  <p class="text-sm text-gray-600">Permission controls and safeguards against malicious use</p>
+                </div>
+
+                <div class="border-l-4 border-green-500 pl-4">
+                  <h4 class="font-semibold text-green-700">Performance</h4>
+                  <p class="text-sm text-gray-600">Optimize tool latency and consider asynchronous operations</p>
+                </div>
+
+                <div class="border-l-4 border-purple-500 pl-4">
+                  <h4 class="font-semibold text-purple-700">Compatibility</h4>
+                  <p class="text-sm text-gray-600">Ensure tools work harmoniously within the system architecture</p>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- Memory Management Section -->
+      <section id="memory" class="py-16 px-8">
+        <div class="container mx-auto max-w-4xl">
+          <div class="section-header">
+            <h2 class="text-4xl font-bold serif text-primary">Memory Management</h2>
+          </div>
+
+          <div id="memory-role" class="component-card">
+            <h3 class="text-2xl font-semibold mb-4 text-primary">The Role of Memory in Conversational AI</h3>
+            <p class="mb-4">
+              Memory plays an <strong>indispensable role in the development of sophisticated and coherent Conversational AI systems</strong>,
+              enabling them to maintain context, recall past interactions, and exhibit more human-like understanding over extended dialogues
+              <a href="#ref-4" class="citation">[4]</a>, <a href="#ref-79" class="citation">[79]</a>. Without effective memory management,
+              AI agents would be limited to stateless, single-turn interactions.
+            </p>
+
+            <div class="grid md:grid-cols-2 gap-6 mb-6">
+              <div class="bg-blue-50 p-6 rounded-lg border border-blue-200">
+                <h4 class="font-semibold text-blue-800 mb-3">
+                  <i class="fas fa-clock mr-2"></i>Short-term Memory
+                </h4>
+                <p class="text-sm text-blue-700">
+                  Holds immediate conversation history, maintains coherence and flow, implemented as conversational buffers
+                  or context windows <a href="#ref-278" class="citation">[278]</a>, <a href="#ref-341" class="citation">[341]</a>.
+                </p>
+              </div>
+
+              <div class="bg-green-50 p-6 rounded-lg border border-green-200">
+                <h4 class="font-semibold text-green-800 mb-3">
+                  <i class="fas fa-database mr-2"></i>Long-term Memory
+                </h4>
+                <p class="text-sm text-green-700">
+                  Stores information across sessions, enables personalization and preference learning,
+                  persistent storage with efficient retrieval mechanisms <a href="#ref-79" class="citation">[79]</a>,
+                  <a href="#ref-92" class="citation">[92]</a>.
+                </p>
+              </div>
+            </div>
+          </div>
+
+          <div id="memory-strategies" class="component-card">
+            <h3 class="text-2xl font-semibold mb-4 text-primary">Strategies for Short-term and Long-term Memory</h3>
+            <p class="mb-6">Effective memory management involves distinct strategies for handling different memory types and requirements:</p>
+
+            <div class="overflow-x-auto">
+              <table class="w-full border-collapse border border-slate-300 text-sm">
+                <thead>
+                  <tr class="bg-slate-100">
+                    <th class="border border-slate-300 p-3 text-left">Strategy Type</th>
+                    <th class="border border-slate-300 p-3 text-left">Description</th>
+                    <th class="border border-slate-300 p-3 text-left">Examples</th>
+                    <th class="border border-slate-300 p-3 text-left">Key Benefits</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr>
+                    <td class="border border-slate-300 p-3 font-medium">Short-Term Memory</td>
+                    <td class="border border-slate-300 p-3">Manages immediate conversational context within the LLM&#39;s limited context window.</td>
+                    <td class="border border-slate-300 p-3">LangChain ConversationBufferMemory, ConversationBufferWindowMemory</td>
+                    <td class="border border-slate-300 p-3">Maintains coherence, handles recent context</td>
+                  </tr>
+                  <tr class="bg-slate-50">
+                    <td class="border border-slate-300 p-3 font-medium">Summarization</td>
+                    <td class="border border-slate-300 p-3">Compresses older conversational turns into summaries to retain key information.</td>
+                    <td class="border border-slate-300 p-3">ConversationSummaryMemory, ConversationSummaryBufferMemory</td>
+                    <td class="border border-slate-300 p-3">Retains salient points, saves tokens</td>
+                  </tr>
+                  <tr>
+                    <td class="border border-slate-300 p-3 font-medium">Long-Term Retrieval</td>
+                    <td class="border border-slate-300 p-3">Stores and retrieves information from external, persistent data stores across sessions.</td>
+                    <td class="border border-slate-300 p-3">VectorStoreRetrieverMemory, LlamaIndex VectorMemoryBlock</td>
+                    <td class="border border-slate-300 p-3">Access to historical data, personalization</td>
+                  </tr>
+                  <tr class="bg-slate-50">
+                    <td class="border border-slate-300 p-3 font-medium">Hierarchical Memory</td>
+                    <td class="border border-slate-300 p-3">Manages memory using tiered approach, similar to OS paging, to extend context.</td>
+                    <td class="border border-slate-300 p-3">MemGPT</td>
+                    <td class="border border-slate-300 p-3">Potentially infinite context, intelligent swapping</td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+
+          <div id="memory-implementation" class="component-card">
+            <h3 class="text-2xl font-semibold mb-4 text-primary">Implementing Memory in LLM Systems</h3>
+            <p class="mb-4">
+              A practical example of dynamic context and memory management is illustrated by the `ModelContextManager` class from the
+              Model Context Protocol (MCP) tutorial <a href="#ref-59" class="citation">[59]</a>. This Python class handles the complexities
+              of an LLM&#39;s context window through sophisticated chunk management and scoring.
+            </p>
+
+            <div class="code-block">
+              <pre><code>class ModelContextManager:
+    def __init__(self, max_context_length=4096, embedding_model_name=&#39;all-MiniLM-L6-v2&#39;):
+        self.max_context_length = max_context_length
+        self.embedding_model = SentenceTransformer(embedding_model_name)
+        self.context_chunks = []
+        self.current_token_count = 0
+    
+    def add_chunk(self, text, importance=1.0, metadata=None):
+        &#34;&#34;&#34;Add a new context chunk with embedding generation&#34;&#34;&#34;
+        embedding = self.embedding_model.encode([text])[0]
+        chunk = ContextChunk(
+            text=text,
+            embedding=embedding,
+            importance=importance,
+            timestamp=time.time(),
+            metadata=metadata
+        )
+        self.context_chunks.append(chunk)
+        self.current_token_count += len(text.split())
+        
+        if self.current_token_count &gt; self.max_context_length:
+            self.optimize_context()
+    
+    def optimize_context(self):
+        &#34;&#34;&#34;Optimize context by scoring and selecting most relevant chunks&#34;&#34;&#34;
+        # Score all chunks based on recency, importance, and relevance
+        scores = self.score_chunks()
+        
+        # Sort chunks by score (highest first)
+        scored_chunks = sorted(zip(self.context_chunks, scores), 
+                              key=lambda x: x[1], reverse=True)
+        
+        # Select top chunks until token limit is reached
+        new_chunks = []
+        total_tokens = 0
+        
+        for chunk, score in scored_chunks:
+            chunk_tokens = len(chunk.text.split())
+            if total_tokens + chunk_tokens &lt;= self.max_context_length:
+                new_chunks.append(chunk)
+                total_tokens += chunk_tokens
+        
+        self.context_chunks = new_chunks
+        self.current_token_count = total_tokens
+    
+    def retrieve_context(self, query_embedding=None, top_k=5):
+        &#34;&#34;&#34;Retrieve most relevant context for a query&#34;&#34;&#34;
+        if query_embedding is None:
+            # If no query, return all context
+            return &#34; &#34;.join(chunk.text for chunk in self.context_chunks)
+        
+        # Score chunks by relevance to query
+        scores = []
+        for chunk in self.context_chunks:
+            similarity = np.dot(chunk.embedding, query_embedding)
+            scores.append(similarity)
+        
+        # Get top-k most relevant chunks
+        top_indices = np.argsort(scores)[-top_k:]
+        return &#34; &#34;.join(self.context_chunks[i].text for i in top_indices)</code></pre>
+            </div>
+
+            <div class="highlight-box mt-6">
+              <h4 class="font-semibold mb-2 text-amber-800">Key Implementation Features:</h4>
+              <ul class="list-disc list-inside space-y-1 text-amber-900 text-sm">
+                <li>Dynamic context window optimization based on multiple scoring factors</li>
+                <li>Semantic embedding generation for relevance-based retrieval</li>
+                <li>Token-aware management to stay within model limits</li>
+                <li>Configurable importance weighting for different context types</li>
+                <li>Extensible architecture for integration with external stores</li>
+              </ul>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- Advanced Techniques Section -->
+      <section id="advanced" class="py-16 px-8 bg-base-200">
+        <div class="container mx-auto max-w-4xl">
+          <div class="section-header">
+            <h2 class="text-4xl font-bold serif text-primary">Advanced Techniques and Future Directions</h2>
+          </div>
+
+          <div id="fine-tuning" class="component-card">
+            <h3 class="text-2xl font-semibold mb-4 text-primary">Fine-tuning vs. Context Engineering</h3>
+            <p class="mb-6">
+              The optimization of Large Language Models for specific tasks often involves a choice between
+              <strong>fine-tuning the model&#39;s weights and employing context engineering techniques</strong>.
+              Each approach has distinct advantages and trade-offs.
+            </p>
+
+            <div class="grid md:grid-cols-2 gap-6">
+              <div class="bg-blue-50 p-6 rounded-lg border border-blue-200">
+                <h4 class="font-semibold text-blue-800 mb-4">
+                  <i class="fas fa-cogs mr-2"></i>Fine-tuning Approach
+                </h4>
+                <div class="space-y-3 text-sm">
+                  <div class="flex items-start">
+                    <i class="fas fa-plus text-green-600 mr-2 mt-1"></i>
+                    <span>Significant accuracy gains for specialized tasks</span>
+                  </div>
+                  <div class="flex items-start">
+                    <i class="fas fa-plus text-green-600 mr-2 mt-1"></i>
+                    <span>Better alignment with specific output styles</span>
+                  </div>
+                  <div class="flex items-start">
+                    <i class="fas fa-minus text-red-600 mr-2 mt-1"></i>
+                    <span>Resource-intensive training requirements</span>
+                  </div>
+                  <div class="flex items-start">
+                    <i class="fas fa-minus text-red-600 mr-2 mt-1"></i>
+                    <span>Risk of catastrophic forgetting</span>
+                  </div>
+                </div>
+              </div>
+
+              <div class="bg-green-50 p-6 rounded-lg border border-green-200">
+                <h4 class="font-semibold text-green-800 mb-4">
+                  <i class="fas fa-puzzle-piece mr-2"></i>Context Engineering
+                </h4>
+                <div class="space-y-3 text-sm">
+                  <div class="flex items-start">
+                    <i class="fas fa-plus text-green-600 mr-2 mt-1"></i>
+                    <span>Flexible and cost-effective adaptation</span>
+                  </div>
+                  <div class="flex items-start">
+                    <i class="fas fa-plus text-green-600 mr-2 mt-1"></i>
+                    <span>Real-time knowledge updates possible</span>
+                  </div>
+                  <div class="flex items-start">
+                    <i class="fas fa-minus text-red-600 mr-2 mt-1"></i>
+                    <span>Constrained by context window limits</span>
+                  </div>
+                  <div class="flex items-start">
+                    <i class="fas fa-minus text-red-600 mr-2 mt-1"></i>
+                    <span>Relies on in-context learning abilities</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <div class="pull-quote mt-6">
+              Often, a <strong>hybrid approach</strong> is most effective, where a model might be broadly fine-tuned for a domain,
+              and then context engineering is used for further task-specific adaptation and real-time knowledge integration.
+            </div>
+          </div>
+
+          <div id="emerging" class="component-card">
+            <h3 class="text-2xl font-semibold mb-4 text-primary">Emerging Trends in Context Engineering</h3>
+            <p class="mb-6">
+              Context engineering is a rapidly evolving field, driven by increasing LLM capabilities and demand for more sophisticated AI applications.
+              Several emerging trends are shaping its future:
+            </p>
+
+            <div class="grid md:grid-cols-2 gap-6">
+              <div class="space-y-4">
+                <div class="border-l-4 border-primary pl-4">
+                  <h4 class="font-semibold text-primary mb-2">Larger Context Windows</h4>
+                  <p class="text-sm text-gray-600">
+                    Models with 1M+ token contexts enable richer inputs and complex reasoning over longer horizons
+                    <a href="#ref-312" class="citation">[312]</a>.
+                  </p>
+                </div>
+
+                <div class="border-l-4 border-secondary pl-4">
+                  <h4 class="font-semibold text-secondary mb-2">Sophisticated Agentic Systems</h4>
+                  <p class="text-sm text-gray-600">
+                    LLMs as controllers orchestrating multiple tools and sub-agents with advanced context management
+                    <a href="#ref-190" class="citation">[190]</a>, <a href="#ref-191" class="citation">[191]</a>.
+                  </p>
+                </div>
+
+                <div class="border-l-4 border-accent pl-4">
+                  <h4 class="font-semibold text-accent mb-2">Automation</h4>
+                  <p class="text-sm text-gray-600">
+                    Automated prompt optimization, dynamic retrieval strategy selection, and intelligent context compression.
+                  </p>
+                </div>
+              </div>
+
+              <div class="space-y-4">
+                <div class="border-l-4 border-green-500 pl-4">
+                  <h4 class="font-semibold text-green-700 mb-2">Evaluation &amp; Benchmarking</h4>
+                  <p class="text-sm text-gray-600">
+                    Standardized metrics and benchmarks for comparing context engineering approaches and driving progress.
+                  </p>
+                </div>
+
+                <div class="border-l-4 border-purple-500 pl-4">
+                  <h4 class="font-semibold text-purple-700 mb-2">Multimodal Context</h4>
+                  <p class="text-sm text-gray-600">
+                    Extending beyond text to incorporate images, audio, and other data types into LLM context.
+                  </p>
+                </div>
+
+                <div class="border-l-4 border-red-500 pl-4">
+                  <h4 class="font-semibold text-red-700 mb-2">Specialized Frameworks</h4>
+                  <p class="text-sm text-gray-600">
+                    Development of tools and frameworks to support advanced context engineering workflows.
+                  </p>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div id="challenges" class="component-card">
+            <h3 class="text-2xl font-semibold mb-4 text-primary">Challenges and Open Research Questions</h3>
+            <p class="mb-6">
+              Despite significant progress, context engineering faces several challenges and open research questions that will drive future innovation:
+            </p>
+
+            <div class="space-y-6">
+              <div class="bg-red-50 p-6 rounded-lg border border-red-200">
+                <h4 class="font-semibold text-red-800 mb-3">
+                  <i class="fas fa-balance-scale mr-2"></i>Context Richness vs Computational Cost
+                </h4>
+                <p class="text-sm text-red-700">
+                  Managing the trade-off between comprehensive context and operational expenses, requiring efficient compression
+                  and prioritization techniques <a href="#ref-228" class="citation">[228]</a>, <a href="#ref-231" class="citation">[231]</a>.
+                </p>
+              </div>
+
+              <div class="bg-yellow-50 p-6 rounded-lg border border-yellow-200">
+                <h4 class="font-semibold text-yellow-800 mb-3">
+                  <i class="fas fa-search mr-2"></i>Information Retrieval Quality
+                </h4>
+                <p class="text-sm text-yellow-700">
+                  Ensuring reliability of retrieved context, handling noisy or conflicting information, and developing better
+                  evaluation methods for retrieval systems.
+                </p>
+              </div>
+
+              <div class="bg-blue-50 p-6 rounded-lg border border-blue-200">
+                <h4 class="font-semibold text-blue-800 mb-3">
+                  <i class="fas fa-brain mr-2"></i>Complex Reasoning &amp; Integration
+                </h4>
+                <p class="text-sm text-blue-700">
+                  Enabling LLMs to synthesize information from diverse sources, understand temporal dependencies, and adapt to
+                  evolving situations while preventing catastrophic forgetting.
+                </p>
+              </div>
+
+              <div class="bg-purple-50 p-6 rounded-lg border border-purple-200">
+                <h4 class="font-semibold text-purple-800 mb-3">
+                  <i class="fas fa-shield-alt mr-2"></i>Security &amp; Robustness
+                </h4>
+                <p class="text-sm text-purple-700">
+                  Preventing prompt injection attacks, ensuring data privacy with external knowledge sources, and building
+                  resilient systems against adversarial inputs.
+                </p>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- Conclusion Section -->
+      <section id="conclusion" class="py-16 px-8">
+        <div class="container mx-auto max-w-4xl">
+          <div class="section-header">
+            <h2 class="text-4xl font-bold serif text-primary">Conclusion</h2>
+          </div>
+
+          <div class="component-card">
+            <h3 class="text-2xl font-semibold mb-4 text-primary">Summary of Key Takeaways</h3>
+            <p class="mb-6">
+              Context engineering has emerged as a <strong>critical discipline for optimizing the performance of Large Language Models in real-world applications</strong>.
+              It moves beyond simple prompt crafting to encompass the systematic design, management, and delivery of all information that shapes an LLM&#39;s understanding and behavior.
+            </p>
+
+            <div class="grid md:grid-cols-2 gap-6 mb-8">
+              <div class="space-y-4">
+                <div class="flex items-start">
+                  <i class="fas fa-crown text-amber-500 mr-3 mt-1"></i>
+                  <div>
+                    <h4 class="font-semibold">Context is King</h4>
+                    <p class="text-sm text-gray-600">Quality and relevance of context determine LLM performance more than raw capabilities alone</p>
+                  </div>
+                </div>
+
+                <div class="flex items-start">
+                  <i class="fas fa-database text-blue-500 mr-3 mt-1"></i>
+                  <div>
+                    <h4 class="font-semibold">RAG for Grounding</h4>
+                    <p class="text-sm text-gray-600">Powerful pattern for grounding responses in external, up-to-date knowledge</p>
+                  </div>
+                </div>
+
+                <div class="flex items-start">
+                  <i class="fas fa-memory text-green-500 mr-3 mt-1"></i>
+                  <div>
+                    <h4 class="font-semibold">Memory for Coherence</h4>
+                    <p class="text-sm text-gray-600">Robust memory management enables conversational coherence and personalization</p>
+                  </div>
+                </div>
+              </div>
+
+              <div class="space-y-4">
+                <div class="flex items-start">
+                  <i class="fas fa-conductor-baton text-purple-500 mr-3 mt-1"></i>
+                  <div>
+                    <h4 class="font-semibold">System Prompts as Conductors</h4>
+                    <p class="text-sm text-gray-600">Essential for guiding LLM behavior and defining operational parameters</p>
+                  </div>
+                </div>
+
+                <div class="flex items-start">
+                  <i class="fas fa-tools text-orange-500 mr-3 mt-1"></i>
+                  <div>
+                    <h4 class="font-semibold">Tool Integration for Action</h4>
+                    <p class="text-sm text-gray-600">Extends LLMs beyond text generation to active, capable agents</p>
+                  </div>
+                </div>
+
+                <div class="flex items-start">
+                  <i class="fas fa-rocket text-red-500 mr-3 mt-1"></i>
+                  <div>
+                    <h4 class="font-semibold">Ongoing Evolution</h4>
+                    <p class="text-sm text-gray-600">Field rapidly advancing with new techniques and challenges emerging</p>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <div class="pull-quote">
+              Mastering context engineering is becoming a key differentiator for building robust, reliable, and intelligent LLM applications
+              that can effectively address complex, dynamic, and domain-specific problems.
+            </div>
+          </div>
+
+          <div class="component-card">
+            <h3 class="text-2xl font-semibold mb-4 text-primary">The Evolving Landscape of Context Engineering</h3>
+            <p class="mb-4">
+              The landscape of context engineering is <strong>dynamic and rapidly advancing</strong>, mirroring the swift progress in Large Language Model capabilities.
+              What began as an artisanal practice of prompt crafting is maturing into a more systematic engineering discipline, complete with frameworks,
+              best practices, and a growing body of research.
+            </p>
+
+            <p class="mb-4">
+              As LLMs become more powerful and their context windows expand, the opportunities for sophisticated context manipulation also grow.
+              We are moving towards AI systems that can handle longer, more complex tasks, maintain richer conversational histories, and integrate more
+              seamlessly with diverse knowledge sources and external tools.
+            </p>
+
+            <img src="https://kimi-web-img.moonshot.cn/img/placeholder-0620/图片2.png" alt="Futuristic artificial intelligence network visualization" class="w-full rounded-lg border mb-6" size="large" aspect="wide" query="futuristic AI network" referrerpolicy="no-referrer"/>
+
+            <p class="mb-6">
+              The future of context engineering will likely see increased <strong>automation of context management tasks</strong>, more sophisticated
+              <strong>multi-agent architectures</strong> where context sharing and coordination are paramount, and a greater emphasis on
+              <strong>evaluating the effectiveness of different context strategies</strong>.
+            </p>
+
+            <div class="highlight-box">
+              <h4 class="font-semibold mb-3 text-amber-800">Future Directions:</h4>
+              <ul class="list-disc list-inside space-y-2 text-amber-900">
+                <li>Multimodal context engineering beyond text to images, audio, and video</li>
+                <li>Advanced agentic systems with sophisticated context coordination</li>
+                <li>Automated context optimization and management frameworks</li>
+                <li>Enhanced evaluation metrics and benchmarking standards</li>
+                <li>Improved security and robustness mechanisms</li>
+              </ul>
+            </div>
+
+            <p class="mt-6 text-lg font-medium">
+              Ultimately, context engineering is poised to play a <strong>pivotal role in bridging the gap between the raw potential of LLMs
+                and their practical, impactful deployment</strong> across industries and applications, shaping the next generation of intelligent systems.
+            </p>
+          </div>
+        </div>
+      </section>
+
+      <!-- References Section -->
+      <section class="py-16 px-8 bg-slate-50">
+        <div class="container mx-auto max-w-4xl">
+          <h2 class="text-3xl font-bold serif text-primary mb-8">References</h2>
+          <div class="grid gap-4 text-sm">
+            <div id="ref-1" class="p-4 bg-white rounded border">
+              <strong>[1]</strong>
+              <a href="https://llmmultiagents.com/en/blogs/the-rise-of-context-engineering-building-the-foundation-for-next-generation-ai-agents" class="citation">The Rise of Context Engineering: Building the Foundation for Next-Generation AI Agents</a>
+            </div>
+            <div id="ref-3" class="p-4 bg-white rounded border">
+              <strong>[3]</strong>
+              <a href="https://nlp.elvissaravia.com/p/context-engineering-guide" class="citation">Context Engineering Guide - NLP with Elvis</a>
+            </div>
+            <div id="ref-4" class="p-4 bg-white rounded border">
+              <strong>[4]</strong>
+              <a href="https://datasciencedojo.com/blog/what-is-context-engineering/" class="citation">What is Context Engineering in AI? - Data Science Dojo</a>
+            </div>
+            <div id="ref-7" class="p-4 bg-white rounded border">
+              <strong>[7]</strong>
+              <a href="https://datasciencedojo.com/blog/what-is-context-engineering/" class="citation">What is Context Engineering in AI? - Data Science Dojo</a>
+            </div>
+            <div id="ref-17" class="p-4 bg-white rounded border">
+              <strong>[17]</strong>
+              <a href="https://medium.com/data-science-in-your-pocket/context-engineering-vs-prompt-engineering-379e9622e19d" class="citation">Context Engineering vs Prompt Engineering - Medium</a>
+            </div>
+            <div id="ref-18" class="p-4 bg-white rounded border">
+              <strong>[18]</strong>
+              <a href="https://fortegrp.com/insights/context-engineering-as-a-core-discipline-for-ai-driven-delivery" class="citation">Context Engineering as a Core Discipline for AI-Driven Delivery - Forte Group</a>
+            </div>
+            <div id="ref-32" class="p-4 bg-white rounded border">
+              <strong>[32]</strong>
+              <a href="https://studyopedia.com/rag/coding-example-retrieval-augmented-generation/" class="citation">Coding Example: Retrieval-Augmented Generation - Studyopedia</a>
+            </div>
+            <div id="ref-38" class="p-4 bg-white rounded border">
+              <strong>[38]</strong>
+              <a href="https://dev.to/simplr_sh/mastering-system-prompts-for-llms-2d1d" class="citation">Mastering System Prompts for LLMs - DEV Community</a>
+            </div>
+            <div id="ref-39" class="p-4 bg-white rounded border">
+              <strong>[39]</strong>
+              <a href="https://www.promptingguide.ai/introduction/examples" class="citation">Prompt Engineering Examples - Prompting Guide</a>
+            </div>
+            <div id="ref-59" class="p-4 bg-white rounded border">
+              <strong>[59]</strong>
+              <a href="https://www.marktechpost.com/2025/04/27/a-coding-tutorial-of-model-context-protocol-focusing-on-semantic-chunking-dynamic-token-management-and-context-relevance-scoring-for-efficient-llm-interactions/" class="citation">Model Context Protocol Tutorial - MarkTechPost</a>
+            </div>
+            <div id="ref-79" class="p-4 bg-white rounded border">
+              <strong>[79]</strong>
+              <a href="https://nlp.elvissaravia.com/p/context-engineering-guide" class="citation">Context Engineering Guide - NLP with Elvis</a>
+            </div>
+            <div id="ref-89" class="p-4 bg-white rounded border">
+              <strong>[89]</strong>
+              <a href="https://medium.com/@ajayverma23/the-art-and-science-of-rag-mastering-prompt-templates-and-contextual-understanding-a47961a57e27" class="citation">The Art and Science of RAG: Mastering Prompt Templates - Medium</a>
+            </div>
+            <div id="ref-90" class="p-4 bg-white rounded border">
+              <strong>[90]</strong>
+              <a href="https://blog.csdn.net/2401_85325397/article/details/141758430" class="citation">RAG System Design - CSDN Blog</a>
+            </div>
+            <div id="ref-91" class="p-4 bg-white rounded border">
+              <strong>[91]</strong>
+              <a href="https://www.valprovia.com/en/blog/mastering-system-prompts-unveiling-best-practices-for-rag-systems" class="citation">Mastering System Prompts: Best Practices for RAG Systems - Valprovia</a>
+            </div>
+            <div id="ref-92" class="p-4 bg-white rounded border">
+              <strong>[92]</strong>
+              <a href="https://medium.com/@bijit211987/context-engineering-is-runtime-of-ai-agents-411c9b2ef1cb" class="citation">Context Engineering is Runtime of AI Agents - Medium</a>
+            </div>
+            <div id="ref-190" class="p-4 bg-white rounded border">
+              <strong>[190]</strong>
+              <a href="https://www.linkedin.com/pulse/why-java-genai-apps-solve-context-engineering-systems-shane-o-rourke-czpue" class="citation">Why Java GenAI Apps Solve Context Engineering - LinkedIn</a>
+            </div>
+            <div id="ref-191" class="p-4 bg-white rounded border">
+              <strong>[191]</strong>
+              <a href="https://blog.langchain.com/how-and-when-to-build-multi-agent-systems/" class="citation">How and When to Build Multi-Agent Systems - LangChain</a>
+            </div>
+            <div id="ref-204" class="p-4 bg-white rounded border">
+              <strong>[204]</strong>
+              <a href="https://www.linkedin.com/pulse/context-engineering-llms-agentic-ai-technical-deep-dive-nagesh-nama-u39de" class="citation">Context Engineering for LLMs &amp; Agentic AI - LinkedIn</a>
+            </div>
+            <div id="ref-205" class="p-4 bg-white rounded border">
+              <strong>[205]</strong>
+              <a href="https://nlp.elvissaravia.com/p/context-engineering-guide" class="citation">Context Engineering Guide - NLP with Elvis</a>
+            </div>
+            <div id="ref-207" class="p-4 bg-white rounded border">
+              <strong>[207]</strong>
+              <a href="https://datasciencedojo.com/blog/what-is-context-engineering/" class="citation">What is Context Engineering? - Data Science Dojo</a>
+            </div>
+            <div id="ref-228" class="p-4 bg-white rounded border">
+              <strong>[228]</strong>
+              <a href="https://www.marktechpost.com/2025/07/06/what-is-context-engineering-in-ai-techniques-use-cases-and-why-it-matters/" class="citation">What is Context Engineering in AI? - MarkTechPost</a>
+            </div>
+            <div id="ref-231" class="p-4 bg-white rounded border">
+              <strong>[231]</strong>
+              <a href="https://www.linkedin.com/pulse/context-engineering-llms-agentic-ai-technical-deep-dive-nagesh-nama-u39de" class="citation">Context Engineering for LLMs &amp; Agentic AI - LinkedIn</a>
+            </div>
+            <div id="ref-249" class="p-4 bg-white rounded border">
+              <strong>[249]</strong>
+              <a href="https://medium.com/@adnanmasood/context-engineering-elevating-ai-strategy-from-prompt-crafting-to-enterprise-competence-b036d3f7f76f" class="citation">Context Engineering: Elevating AI Strategy - Medium</a>
+            </div>
+            <div id="ref-259" class="p-4 bg-white rounded border">
+              <strong>[259]</strong>
+              <a href="https://eclipsesource.com/blogs/2024/07/26/ai-context-management-in-domain-specific-tools/" class="citation">AI Context Management in Domain-Specific Tools - EclipseSource</a>
+            </div>
+            <div id="ref-269" class="p-4 bg-white rounded border">
+              <strong>[269]</strong>
+              <a href="https://datasciencedojo.com/blog/what-is-context-engineering/" class="citation">What is Context Engineering? - Data Science Dojo</a>
+            </div>
+            <div id="ref-278" class="p-4 bg-white rounded border">
+              <strong>[278]</strong>
+              <a href="https://medium.com/@bravekjh/memory-management-for-ai-agents-principles-architectures-and-code-dac3b37653dc" class="citation">Memory Management for AI Agents - Medium</a>
+            </div>
+            <div id="ref-280" class="p-4 bg-white rounded border">
+              <strong>[280]</strong>
+              <a href="https://www.linkedin.com/pulse/langchain-memory-management-rutam-bhagat-lfrgf" class="citation">LangChain Memory Management - LinkedIn</a>
+            </div>
+            <div id="ref-285" class="p-4 bg-white rounded border">
+              <strong>[285]</strong>
+              <a href="https://www.llamaindex.ai/blog/context-engineering-what-it-is-and-techniques-to-consider" class="citation">Context Engineering: What It Is and Techniques - LlamaIndex</a>
+            </div>
+            <div id="ref-312" class="p-4 bg-white rounded border">
+              <strong>[312]</strong>
+              <a href="https://www.linkedin.com/pulse/context-engineering-llms-agentic-ai-technical-deep-dive-nagesh-nama-u39de" class="citation">Context Engineering for LLMs &amp; Agentic AI - LinkedIn</a>
+            </div>
+            <div id="ref-341" class="p-4 bg-white rounded border">
+              <strong>[341]</strong>
+              <a href="https://www.linkedin.com/pulse/context-engineering-llms-agentic-ai-technical-deep-dive-nagesh-nama-u39de" class="citation">Context Engineering for LLMs &amp; Agentic AI - LinkedIn</a>
+            </div>
+            <div id="ref-342" class="p-4 bg-white rounded border">
+              <strong>[342]</strong>
+              <a href="https://medium.com/@adnanmasood/context-engineering-elevating-ai-strategy-from-prompt-crafting-to-enterprise-competence-b036d3f7f76f" class="citation">Context Engineering: Elevating AI Strategy - Medium</a>
+            </div>
+          </div>
+        </div>
+      </section>
+    </main>
+
+    <script>
+        // Table of Contents active link tracking
+        const tocLinks = document.querySelectorAll('.toc-link');
+        const sections = document.querySelectorAll('section[id], div[id]');
+
+        function updateActiveLink() {
+            let current = '';
+            sections.forEach(section => {
+                const sectionTop = section.offsetTop;
+                const sectionHeight = section.clientHeight;
+                if (scrollY >= (sectionTop - 200)) {
+                    current = section.getAttribute('id');
+                }
+            });
+
+            tocLinks.forEach(link => {
+                link.classList.remove('active');
+                if (link.getAttribute('href') === '#' + current) {
+                    link.classList.add('active');
+                }
+            });
+        }
+
+        window.addEventListener('scroll', updateActiveLink);
+        updateActiveLink();
+
+        // Smooth scrolling for anchor links
+        document.querySelectorAll('a[href^="#"]').forEach(anchor => {
+            anchor.addEventListener('click', function (e) {
+                e.preventDefault();
+                const target = document.querySelector(this.getAttribute('href'));
+                if (target) {
+                    target.scrollIntoView({
+                        behavior: 'smooth',
+                        block: 'start'
+                    });
+                }
+            });
+        });
+
+        // Mobile TOC toggle (for responsive design)
+        function toggleTOC() {
+            const sidebar = document.querySelector('.toc-sidebar');
+            sidebar.classList.toggle('open');
+        }
+
+        // Add mobile menu button for smaller screens
+        if (window.innerWidth <= 1024) {
+            const mobileButton = document.createElement('button');
+            mobileButton.innerHTML = '<i class="fas fa-bars"></i>';
+            mobileButton.className = 'fixed top-4 left-4 z-50 bg-primary text-white p-3 rounded-lg shadow-lg lg:hidden';
+            mobileButton.onclick = toggleTOC;
+            document.body.appendChild(mobileButton);
+            
+            // Close TOC when a link is clicked on mobile
+            tocLinks.forEach(link => {
+                link.addEventListener('click', () => {
+                    if (window.innerWidth <= 1024) {
+                        const sidebar = document.querySelector('.toc-sidebar');
+                        sidebar.classList.remove('open');
+                    }
+                });
+            });
+        }
+    </script>
+  
+
+</body></html>
