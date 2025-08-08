@@ -1,0 +1,269 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>AttUnderstanding Attention Sinks in GPT-5 and Beyond: Practical Insights and Math</title>
+  <meta name="description" content="A blog-style walkthrough of attention sinks in long-context Transformers: intuition, math, failure modes, and how to implement a stable, constant-memory cache." />
+
+  <!-- Open Graph / Twitter (optional: update URLs/images for your site) -->
+  <meta property="og:type" content="article" />
+  <meta property="og:title" content="AttUnderstanding Attention Sinks in GPT-5 and Beyond: Practical Insights and Math" />
+  <meta property="og:description" content="A blog-style walkthrough of attention sinks in long-context Transformers: intuition, math, failure modes, and implementation guidance." />
+  <!-- <meta property="og:url" content="https://yourdomain.com/blog/attention-sinks-long-context" />
+  <meta property="og:image" content="https://yourdomain.com/assets/attention-sinks-cover.png" />
+  <meta name="twitter:card" content="summary_large_image" /> -->
+
+  <!-- MathJax (LaTeX) -->
+  <script>
+    window.MathJax = {
+      tex: {
+        inlineMath: [["\\(","\\)"],["$","$"]],
+        displayMath: [["\\[","\\]"]],
+        processEscapes: true
+      },
+      options: {
+        skipHtmlTags: ["script","noscript","style","textarea","pre","code"]
+      },
+      svg: { fontCache: "global" }
+    };
+  </script>
+  <script async id="MathJax-script" src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-svg.js"></script>
+
+  <style>
+    :root{
+      --bg:#ffffff; --fg:#111; --muted:#555; --link:#2b6cb0; --border:#e6e6e6;
+      --code-bg:#0f172a; --code-fg:#e5e7eb; --accent:#4f46e5;
+    }
+    @media (prefers-color-scheme: dark){
+      :root{
+        --bg:#0b0d10; --fg:#e6e6e6; --muted:#a0a0a0; --link:#8ab4f8; --border:#222;
+        --code-bg:#0d1117; --code-fg:#c9d1d9; --accent:#7c7cff;
+      }
+    }
+    body{ margin:0; background:var(--bg); color:var(--fg);
+      font:16px/1.75 system-ui,-apple-system,Segoe UI,Roboto,Ubuntu,Cantarell,Noto Sans,Helvetica Neue,Arial; }
+    .container{ max-width: 860px; padding: 0 1.25rem; margin: 0 auto; }
+    header{ padding: 2.25rem 0 1rem; border-bottom:1px solid var(--border); }
+    a{ color:var(--link); text-decoration:none; }
+    a:hover{ text-decoration:underline; }
+    h1{ font-size: clamp(2rem, 2.4vw + 1.1rem, 2.7rem); line-height:1.15; margin:.5rem 0 0; letter-spacing:-.01em; }
+    h2{ margin:2.2rem 0 .85rem; font-size:1.65rem; }
+    h3{ margin:1.35rem 0 .55rem; font-size:1.25rem; }
+    p, li{ font-size:1.04rem; }
+    .lead{ color:var(--muted); font-size:1.1rem; margin-top:.6rem; }
+    article{ padding: 2rem 0 4rem; }
+    .callout{ border:1px solid var(--border); border-radius:10px; padding:1rem; background: rgba(255,255,0,.045); }
+    blockquote{ margin:1rem 0; padding:.6rem 1rem; border-left:4px solid var(--accent); background: rgba(127,127,255,.06); }
+    pre{
+      background: var(--code-bg); color: var(--code-fg); border:1px solid var(--border);
+      border-radius: 10px; padding: 1rem; overflow:auto;
+    }
+    code{ font-family: ui-monospace,SFMono-Regular,Menlo,Monaco,Consolas,"Liberation Mono","DejaVu Sans Mono","Courier New",monospace;
+          background: rgba(127,127,127,.08); padding:.12rem .35rem; border-radius:.35rem; }
+    .rule{ border-top:1px solid var(--border); margin:2.25rem 0; }
+    .footnotes{ border-top:1px solid var(--border); margin-top:3rem; padding-top:1rem; color:var(--muted); }
+    .figure{ font-size:.95rem; color:var(--muted); margin-top:.5rem; }
+    .checklist li{ margin:.4rem 0; }
+  </style>
+</head>
+<body>
+  <header class="container">
+    <a href="../blog.html">&larr; Go back to blogs</a>
+    <h1>Understanding Attention Sinks in GPT-5 and Beyond: Practical Insights and Math</h1>
+    <p class="lead">
+When GPT-5 first hit the scene, I couldn’t resist diving straight into its <a href="https://substack.com/@sannikpatel/note/c-142515174" target="_blank" rel="noopener">internals</a>. Somewhere between the code and the diagrams, I stumbled upon a curious quirk, “attention sinks.” At first, I assumed they were just a trick to scale attention or tame its overflow. But as I dug deeper, I realised they were far more than that: early tokens acting as steadfast anchors in the sea of context, shaped by softmax itself, the hidden reason sliding windows sometimes collapse, and the key to a deceptively simple cache policy that keeps generation steady across vast stretches of text.
+</p>
+
+</header>
+
+  <article class="container">
+
+    <section class="callout">
+      <h2>Quick orientation</h2>
+      <p>You’re comfortable with Transformers and KV caches, but you want a clear path from <em>intuition → math → engineering</em>. This blog shows:
+      <ol>
+        <li>What <strong>attention sinks</strong> are and why they appear.</li>
+        <li>How softmax makes them a <em>feature</em>, not a bug.</li>
+        <li>Why evicting them destabilizes long-context generation.</li>
+        <li>A tiny cache policy that fixes it, plus practical guardrails.</li>
+      </ol>
+      </p>
+    </section>
+
+    <div class="rule"></div>
+
+    <section id="intro">
+      <h2>1) An intuition you can’t unsee</h2>
+      <p>Imagine your model mid-generation, producing a mundane connective like “and” or “the.” There’s no strong evidence for any specific past token, yet attention weights must still sum to 1. Where does that probability mass go? In many trained LMs, a few early positions, often the very first tokens consistently soak up the “excess.” These are <strong>attention sinks</strong>.</p>
+      <p>They act like ballast in a ship: most of the time you barely notice them, but remove them and the whole vessel rocks violently. That’s exactly what happens when a sliding window quietly evicts the beginning of the conversation.</p>
+    </section>
+
+    <section id="math">
+      <h2>2) Softmax makes sinks inevitable</h2>
+      <h3>2.1 Softmax as a forced budget</h3>
+      <p>For a single head at step \(t\):</p>
+      <p>\[
+        \alpha_{t,j} \;=\; \frac{\exp(z_{t,j})}{\sum_{i=1}^{m}\exp(z_{t,i})}, 
+        \qquad z_{t,j} \;=\; \frac{Q_t \cdot K_j}{\sqrt{d_k}}.
+      \]</p>
+      <p>The weights \(\alpha_{t,\cdot}\) must sum to 1 no matter what. During pretraining, harmless, slightly-high baselines at a few positions (e.g., BOS) get reinforced by gradient flow and become reliable “default recipients” of probability mass: the sinks.</p>
+
+      <h3>2.2 A toy model of sink bias</h3>
+      <p>Suppose \(S\) earliest positions carry a small logit lift \(\delta&gt;0\) over the rest:</p>
+      <p>\[
+        z_s = \mu + \delta \quad (s\le S), \qquad z_r = \mu \quad (S &lt; r \le W).
+      \]</p>
+      <p>Softmax denominator:
+      \[
+        D = \sum_{j=1}^{W} e^{z_j} = e^{\mu}\left(S e^{\delta} + (W-S)\right).
+      \]
+      With sinks present, \(D\) has a large, low-variance floor \(S e^{\mu+\delta}\). Remove them and \(D\) shrinks to \(e^{\mu}W\), making the distribution much more sensitive to tiny logit changes.</p>
+
+      <h3>2.3 Sensitivity and stability</h3>
+      <p>The softmax Jacobian gives
+      \[
+        \frac{\partial \alpha_{t,j}}{\partial z_{t,k}} = \alpha_{t,j}\left(\delta_{jk}-\alpha_{t,k}\right).
+      \]
+      Larger \(D\) (thanks to sinks) implies smaller \(\alpha\) volatility to logit perturbations, damping error propagation through layers and time. Intuitively: sinks keep the “temperature” effectively lower when evidence is weak.</p>
+    </section>
+
+    <section id="failure">
+      <h2>3) Why naïve sliding windows collapse</h2>
+      <p>In a sliding window of width \(W\), you retain only the most recent \(W\) tokens. Early sinks eventually fall off the left edge. Two compounding issues follow:</p>
+      <ol>
+        <li><strong>Normalization shock.</strong> Without the sink floor, \(D\) is smaller and more volatile; softmax behaves “hotter,” so head weights swing too much between unrelated keys.</li>
+        <li><strong>Value over-mixing.</strong> Unstable attention blends unrelated \(V_i\) vectors; across layers and steps, the noise compounds into gibberish.</li>
+      </ol>
+      <blockquote>
+        Field note: if you plot attention during a long, low-information stretch, you can watch heads latching onto those first few tokens. Evict them and the plot turns chaotic almost immediately.
+      </blockquote>
+    </section>
+
+    <section id="fix">
+      <h2>4) A tiny fix that works: pin a few early tokens</h2>
+      <p>The minimal, model-agnostic remedy is a cache policy:</p>
+      <ul>
+        <li><strong>Pin</strong> the first \(S\) tokens permanently in the KV cache (e.g., \(S=4\)).</li>
+        <li><strong>Slide</strong> a window of size \(W-S\) over the rest.</li>
+      </ul>
+      <p>Formally, with time \(t\):</p>
+      <p>\[
+        \text{KV\_cache}(t) \;=\; \{(K_j,V_j)\}_{j=1}^{S} \;\cup\; \{(K_j,V_j)\}_{j=t-(W-S)+1}^{t}.
+      \]</p>
+      <p>This preserves the stabilizing denominator floor while keeping memory \(\mathcal{O}(W)\) and compute per token \(\mathcal{O}(W\cdot d)\).</p>
+    </section>
+
+    <section id="choosing">
+      <h2>5) Choosing <em>S</em> and <em>W</em>: rules of thumb</h2>
+      <ul>
+        <li><strong>\(S\)</strong> (pinned sinks): start with \(S=4\) if your model wasn’t trained with a dedicated sink token. If your pretraining inserted a special start token designed as a sink, try \(S=1\).</li>
+        <li><strong>\(W\)</strong> (total window): pick for latency/VRAM. A good starting point is the max your target hardware can serve at &lt;95% memory util with your batch size.</li>
+        <li><strong>Heuristic check:</strong> if attention heatmaps show several heads consistently attending to positions 1–4, keep \(S\ge 4\). If most mass concentrates on the first token, you can experiment with \(S=1\) or \(2\).</li>
+      </ul>
+    </section>
+
+    <section id="impl">
+      <h2>6) Implementation (step-by-step)</h2>
+
+      <h3>6.1 Index policy</h3>
+      <pre><code># t: current step (1-indexed for clarity)
+# W: total KV window (including sinks)
+# S: number of pinned early tokens
+def sink_aware_kv_indices(t, W, S):
+    assert 1 &lt;= S &lt;= W
+    start_recent = max(S+1, t - (W - S) + 1)
+    keep = list(range(1, S+1)) + list(range(start_recent, t+1))
+    return keep</code></pre>
+
+      <h3>6.2 Integrating with your cache</h3>
+      <ul>
+        <li>When you append new \(K_t, V_t\), compute <code>keep</code> and evict keys/values not in it.</li>
+        <li>With paged KV caches, <em>pin the page(s)</em> that hold indices \(1..S\); page the rest normally.</li>
+        <li>In tensor parallel, ensure each shard pins the same logical positions. If you shard by sequence, pin on the rank that “owns” \(1..S\); if you shard by hidden dim, everyone keeps the same indices.</li>
+      </ul>
+
+      <h3>6.3 Mixed precision & quantization</h3>
+      <ul>
+        <li>Pinning stabilizes activations, often reducing outliers handy if you’re flirting with 4-bit KV.</li>
+        <li>Keep the first \(S\) values in a slightly safer format if needed (e.g., fp16) while the rest run in int4.</li>
+      </ul>
+
+      <h3>6.4 Telemetry you should log</h3>
+      <ul>
+        <li>Per-head attention mass on indices \(1..S\) over time.</li>
+        <li>Perplexity vs. position (watch for post-eviction spikes in the control baseline).</li>
+        <li>Activation max/percentiles before/after the policy change.</li>
+      </ul>
+    </section>
+
+    <section id="worked">
+      <h2>7) A worked example (thought experiment)</h2>
+      <p>Suppose a head’s logits among recent tokens hover around \(\mu\), with the pinned first four tokens around \(\mu+\delta\) where \(\delta=0.4\). With \(W=512\), \(S=4\):</p>
+      <p>\[
+        D_{\text{with sinks}} = e^{\mu}\left(4e^{0.4}+508\right) \approx e^{\mu}(4\cdot1.49 + 508) \approx e^{\mu}\cdot 514.
+      \]</p>
+      <p>If you drop the sinks, \(D = e^{\mu}\cdot 512\). That looks similar, but the effect compounds across <em>many heads and layers</em>, and, crucially, the pinned terms are <em>stable</em> over time. In noisy stretches, that stability is the difference between smooth continuation and a runaway drift.</p>
+      <p>The practical lesson: you don’t need a big \(S\); you need a <em>consistent</em> one.</p>
+    </section>
+
+    <section id="debug">
+      <h2>8) Debugging & diagnostics</h2>
+      <h3>8.1 How to tell you’ve found sinks</h3>
+      <ul>
+        <li>On low-information tokens (e.g., punctuation, fillers), several heads place non-trivial mass on positions 1–\(S\).</li>
+        <li>The pattern persists across prompts and layers (though magnitudes differ).</li>
+      </ul>
+
+      <h3>8.2 When things still go sideways</h3>
+      <ul>
+        <li><strong>Collapse after minutes:</strong> increase \(S\) from 2→4, or bump \(W\) by 64–128.</li>
+        <li><strong>Latency spikes:</strong> your eviction is too granular. Switch to page-aligned eviction and pin whole pages that include 1–\(S\).</li>
+        <li><strong>Quantization artifacts:</strong> keep the sink values at a safer precision or recalibrate the quantizer with sink-heavy traces.</li>
+      </ul>
+    </section>
+
+    <section id="alt">
+      <h2>9) Variations you may encounter</h2>
+      <ul>
+        <li><strong>Dedicated sink token:</strong> Some training setups prepend a special token whose learned key/value acts as a clean reservoir, letting you use \(S=1\) at inference.</li>
+        <li><strong>Per-head scalar “sink”:</strong> An architectural variant adds a learnable scalar per head to capture spare probability mass—parameter-cheap and easy to retrofit.</li>
+        <li><strong>Alternative normalizations:</strong> Methods that relax the sum-to-one constraint can reduce sink formation, but they change the model’s behavior and training dynamics.</li>
+      </ul>
+    </section>
+
+    <section id="faq">
+      <h2>10) FAQ</h2>
+      <h3>Q1: Why not just increase the window?</h3>
+      <p>You should, if you can. But even with a big \(W\), evicting <em>the wrong</em> early tokens can still trigger instability. Pinning a handful costs almost nothing and protects you when memory pressure forces a smaller \(W\).</p>
+
+      <h3>Q2: Is this equivalent to adding BOS every time?</h3>
+      <p>No. The model’s learned distribution uses specific early positions as sinks. Re-injecting BOS later doesn’t replicate their learned key/value statistics.</p>
+
+      <h3>Q3: Do all heads use the same sinks?</h3>
+      <p>Not exactly. Some heads use them heavily, others barely. Pinning the same first \(S\) indices covers all heads since the KV cache is shared.</p>
+    </section>
+
+    <section id="checklist">
+      <h2>11) Deployment checklist</h2>
+      <ul class="checklist">
+        <li>Pick \(W\) for your latency/VRAM target; start \(S=4\) if unsure.</li>
+        <li>Pin indices \(1..S\) in your KV cache; evict others page-wise.</li>
+        <li>Log sink mass per head; verify stability on dull segments.</li>
+        <li>Quantization? Keep \(1..S\) at higher precision if needed.</li>
+        <li>Load test: long, low-entropy transcripts (hours) without collapse.</li>
+      </ul>
+    </section>
+
+    <section class="footnotes" id="refs">
+      <h2>References (for further reading)</h2>
+      <ul>
+        <li>MIT HAN Lab blog: <a href="https://hanlab.mit.edu/blog/streamingllm" rel="noopener" target="_blank">How Attention Sinks Keep Language Models Stable</a>.</li>
+        <li>Community and academic analyses on attention sinks, register tokens, and softmax-driven stability in long-context Transformers.</li>
+      </ul>
+      <p><em>Note:</em> The parts in white above are my own insights and reflections :D. I’ve reshaped piece with the assistance of large language models.</p>
+    </section>
+
+  </article>
+</body>
+</html>
