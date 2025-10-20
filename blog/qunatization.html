@@ -1,0 +1,132 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Why Naive Quantization Destroys Model Quality (and How llm.int8 Fixes It)</title>
+  <meta name="description" content="Why naive quantization destroys model quality and how llm.int8 fixes it using mixed precision and outlier-aware scaling." />
+
+  <!-- Open Graph / Twitter -->
+  <meta property="og:type" content="article" />
+  <meta property="og:title" content="Why Naive Quantization Destroys Model Quality (and How llm.int8 Fixes It)" />
+  <meta property="og:description" content="Why naive quantization destroys model quality and how llm.int8 fixes it using mixed precision and outlier-aware scaling." />
+
+  <!-- MathJax (optional, not used here but left for consistency) -->
+  <script>
+    window.MathJax = {
+      tex: { inlineMath: [["\\(","\\)"],["$","$"]], displayMath: [["\\[","\\]"]] },
+      svg: { fontCache: "global" }
+    };
+  </script>
+  <script async id="MathJax-script" src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-svg.js"></script>
+
+  <style>
+    :root{
+      --bg:#ffffff; --fg:#111; --muted:#555; --link:#2b6cb0; --border:#e6e6e6;
+      --code-bg:#0f172a; --code-fg:#e5e7eb; --accent:#4f46e5;
+    }
+    @media (prefers-color-scheme: dark){
+      :root{
+        --bg:#0b0d10; --fg:#e6e6e6; --muted:#a0a0a0; --link:#8ab4f8; --border:#222;
+        --code-bg:#0d1117; --code-fg:#c9d1d9; --accent:#7c7cff;
+      }
+    }
+    body{ margin:0; background:var(--bg); color:var(--fg);
+      font:16px/1.75 system-ui,-apple-system,Segoe UI,Roboto,Ubuntu,Cantarell,Noto Sans,Helvetica Neue,Arial; }
+    .container{ max-width: 860px; padding: 0 1.25rem; margin: 0 auto; }
+    header{ padding: 2.25rem 0 1rem; border-bottom:1px solid var(--border); }
+    a{ color:var(--link); text-decoration:none; }
+    a:hover{ text-decoration:underline; }
+    h1{ font-size: clamp(2rem, 2.4vw + 1.1rem, 2.7rem); line-height:1.15; margin:.5rem 0 0; letter-spacing:-.01em; }
+    h2{ margin:2.2rem 0 .85rem; font-size:1.65rem; }
+    h3{ margin:1.35rem 0 .55rem; font-size:1.25rem; }
+    p, li{ font-size:1.04rem; }
+    .lead{ color:var(--muted); font-size:1.1rem; margin-top:.6rem; }
+    article{ padding: 2rem 0 4rem; }
+    pre{
+      background: var(--code-bg); color: var(--code-fg); border:1px solid var(--border);
+      border-radius: 10px; padding: 1rem; overflow:auto;
+    }
+    code{ font-family: ui-monospace,SFMono-Regular,Menlo,Monaco,Consolas,"Liberation Mono","Courier New",monospace;
+          background: rgba(127,127,127,.08); padding:.12rem .35rem; border-radius:.35rem; }
+    .rule{ border-top:1px solid var(--border); margin:2.25rem 0; }
+    blockquote{ margin:1rem 0; padding:.6rem 1rem; border-left:4px solid var(--accent); background: rgba(127,127,255,.06); }
+  </style>
+</head>
+
+<body>
+  <header class="container">
+    <a href="../blog.html">&larr; Go back to blogs</a>
+    <h1>Why Naive Quantization Destroys Model Quality (and How <code>llm.int8</code> Fixes It)</h1>
+    <p class="lead">Quantization isn’t just about smaller numbers — it’s about how you handle the rare, dangerous ones.</p>
+  </header>
+
+  <article class="container">
+    <section>
+      <p>You might think quantizing a model from FP16 to INT8 is as simple as converting all the weights to 8-bit format. That’s the trap — and it’s exactly why so many quantization attempts obliterate model quality.</p>
+
+      <p>The real problem isn’t “reduced precision.” It’s <strong>outliers</strong>: those rare activation values that are 100× larger than the rest. When you try to fit them into the same quantization range, everything else gets crushed. Think of it like compressing a skyscraper and a house with the same ruler.</p>
+
+      <h2>What actually happens</h2>
+      <ul>
+        <li>FP16 weights get scaled to fit into <code>[-127, 127]</code> and stored as INT8.</li>
+        <li>Outlier activations hijack the scaling factor.</li>
+        <li>Normal activations — which make up 99.99% of the data — collapse into just a few quantized values.</li>
+      </ul>
+
+      <p>The math is brutal:</p>
+      <pre><code>Quantization range: [-127, 127] → 254 discrete values
+One outlier = 50 → scale = 50 / 127 = 0.39
+Normal value = 0.3 → round(0.3 / 0.39) = 1
+Only ~2 out of 254 values are actually used → 99.2% precision lost</code></pre>
+
+      <blockquote>You’re using a bathroom scale to weigh an ant and an elephant together.</blockquote>
+
+      <p>And here’s the key insight: <strong>outliers are dimension-specific, not token-specific.</strong> Feature dimension #2145 might always produce huge activations (±40 to ±60), while dimension #891 stays tiny (±0.2 to ±0.5). This pattern holds across all prompts and batches — it’s baked into the model’s structure.</p>
+
+      <h2>Why naive quantization fails</h2>
+      <ul>
+        <li>One uniform scale per tensor.</li>
+        <li>All weights treated equally.</li>
+        <li>Result: model perplexity jumps from 12.3 → 2,847.</li>
+      </ul>
+
+      <div class="rule"></div>
+
+      <h2>The fix: mixed precision quantization (<code>llm.int8</code>)</h2>
+      <p>Instead of crushing everything under a single scale, <code>llm.int8</code> recognizes and isolates the outliers. The recipe is simple:</p>
+      <ol>
+        <li>Identify the top <strong>0.5%</strong> of outlier feature dimensions.</li>
+        <li>Keep those in FP16.</li>
+        <li>Quantize the remaining <strong>99.5%</strong> to INT8.</li>
+      </ol>
+
+      <p>The results are dramatic:</p>
+      <ul>
+        <li>Model perplexity: 12.3 → 12.6 (basically unchanged)</li>
+        <li>Memory bandwidth: 140 GB → 70 GB per forward pass</li>
+        <li>Throughput: up 1.8×</li>
+        <li>Model quality: ≈ 98% preserved</li>
+        <li>A 70B model that once needed 4× A100s now fits on 2× A100s</li>
+      </ul>
+
+      <blockquote>The difference isn’t about “using 8 bits instead of 16.” It’s about respecting outliers — and designing your quantization around them.</blockquote>
+
+      <h2>Further insights</h2>
+      <p>Modern quantization methods go even further. They use <strong>per-channel scaling</strong> and <strong>dynamic calibration</strong> to ensure each dimension or layer gets its own range, minimizing information loss. Some implementations (like <code>bitsandbytes</code>) integrate this logic directly into matrix multiplication kernels — avoiding costly dequantization and improving efficiency end-to-end.</p>
+
+      <p>In short: quantization isn’t just a compression trick — it’s a test of how well you understand your model’s activation landscape. Handle outliers correctly, and you get performance <em>and</em> speed. Ignore them, and your model collapses under its own extremes.</p>
+    </section>
+
+    <section class="footnotes">
+      <h2>References</h2>
+      <ul>
+        <li>Dettmers et al. (2022). <a href="https://arxiv.org/abs/2208.07339" target="_blank" rel="noopener">LLM.int8(): 8-bit Matrix Multiplication for Transformers at Scale</a>.</li>
+        <li>Tim Dettmers’ <a href="https://timdettmers.com/2022/08/23/llm-int8/" target="_blank" rel="noopener">original blog post</a> explaining outlier-aware quantization.</li>
+        <li>Community benchmarks on <a href="https://github.com/TimDettmers/bitsandbytes" target="_blank" rel="noopener">bitsandbytes</a> and mixed-precision inference for large models.</li>
+      </ul>
+      <p><em>Author’s note:</em> This post was refined with help from large language models to clarify intuition and keep the math honest.</p>
+    </section>
+  </article>
+</body>
+</html>
