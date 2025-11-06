@@ -1,0 +1,155 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Adaptive Thresholding for Optimal Ranking in Semantic Search</title>
+  <meta name="description" content="How adaptive thresholding dynamically determines optimal cutoffs in semantic search by analyzing similarity score distributions using z-scores and percentage change filtering." />
+
+  <!-- Open Graph / Twitter -->
+  <meta property="og:type" content="article" />
+  <meta property="og:title" content="Adaptive Thresholding for Optimal Ranking in Semantic Search" />
+  <meta property="og:description" content="How adaptive thresholding dynamically determines optimal cutoffs in semantic search by analyzing similarity score distributions using z-scores and percentage change filtering." />
+
+  <!-- MathJax -->
+  <script>
+    window.MathJax = {
+      tex: { inlineMath: [["\\(","\\)"],["$","$"]], displayMath: [["\\[","\\]"]] },
+      svg: { fontCache: "global" }
+    };
+  </script>
+  <script async id="MathJax-script" src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-svg.js"></script>
+
+  <style>
+    :root{
+      --bg:#ffffff; --fg:#111; --muted:#555; --link:#2b6cb0; --border:#e6e6e6;
+      --code-bg:#0f172a; --code-fg:#e5e7eb; --accent:#4f46e5;
+    }
+    @media (prefers-color-scheme: dark){
+      :root{
+        --bg:#0b0d10; --fg:#e6e6e6; --muted:#a0a0a0; --link:#8ab4f8; --border:#222;
+        --code-bg:#0d1117; --code-fg:#c9d1d9; --accent:#7c7cff;
+      }
+    }
+    body{ margin:0; background:var(--bg); color:var(--fg);
+      font:16px/1.75 system-ui,-apple-system,Segoe UI,Roboto,Ubuntu,Cantarell,Noto Sans,Helvetica Neue,Arial; }
+    .container{ max-width: 860px; padding: 0 1.25rem; margin: 0 auto; }
+    header{ padding: 2.25rem 0 1rem; border-bottom:1px solid var(--border); }
+    a{ color:var(--link); text-decoration:none; }
+    a:hover{ text-decoration:underline; }
+    h1{ font-size: clamp(2rem, 2.4vw + 1.1rem, 2.7rem); line-height:1.15; margin:.5rem 0 0; letter-spacing:-.01em; }
+    h2{ margin:2.2rem 0 .85rem; font-size:1.65rem; }
+    h3{ margin:1.35rem 0 .55rem; font-size:1.25rem; }
+    p, li{ font-size:1.04rem; }
+    .lead{ color:var(--muted); font-size:1.1rem; margin-top:.6rem; }
+    article{ padding: 2rem 0 4rem; }
+    pre{
+      background: var(--code-bg); color: var(--code-fg); border:1px solid var(--border);
+      border-radius: 10px; padding: 1rem; overflow:auto;
+    }
+    code{ font-family: ui-monospace,SFMono-Regular,Menlo,Monaco,Consolas,"Liberation Mono","Courier New",monospace;
+          background: rgba(127,127,127,.08); padding:.12rem .35rem; border-radius:.35rem; }
+    .rule{ border-top:1px solid var(--border); margin:2.25rem 0; }
+    blockquote{ margin:1rem 0; padding:.6rem 1rem; border-left:4px solid var(--accent); background: rgba(127,127,255,.06); }
+  </style>
+</head>
+
+<body>
+  <header class="container">
+    <a href="../blog.html">&larr; Go back to blogs</a>
+    <h1>Adaptive Thresholding for Optimal Ranking in Semantic Search</h1>
+    <p class="lead">A statistically adaptive way to decide how many search results are truly relevant by letting similarity scores speak for themselves.</p>
+  </header>
+
+  <article class="container">
+    <section>
+      <p>Semantic search has changed how we find information from product recommendations to contextual document retrieval. It works by mapping queries and items into a shared <strong>latent space</strong> and returning those vectors that are closest together in meaning.</p>
+
+      <p>Traditionally, we take the <code>top-N</code> most similar items say, the top 10 and call it a day. But there’s an underlying assumption here: that the top-10 are always meaningfully distinct and relevant. In practice, that assumption breaks down quickly.</p>
+
+      <blockquote>In semantic spaces, “top-N” is often arbitrary. Some queries deserve 2 results, others 20 it depends on how the similarity scores behave.</blockquote>
+
+      <p>During our early experiments, we noticed that the <strong>similarity score distributions</strong> across queries were highly inconsistent. Sometimes there was a sharp drop between relevant and irrelevant items; other times, the scores were nearly flat. Synthetic product descriptions, for instance, often used repetitive language such as “available in X colors and Y materials,” collapsing distinctions between items.</p>
+
+      <p>As a result, a fixed-N cutoff returned inconsistent quality sometimes too few results, sometimes too many. The solution? Let the <em>data itself</em> determine where to stop.</p>
+
+      <h2>The idea: detect the drop-off point dynamically</h2>
+      <p>Instead of choosing <code>N</code> in advance, we look at the <strong>pattern of differences</strong> between consecutive similarity scores. The goal is to find where the curve of scores changes behavior a point that separates truly relevant items from everything else.</p>
+
+      <p>Formally, for a ranked list of similarity scores:</p>
+      <pre><code>S = [s₁, s₂, ..., sₙ]</code></pre>
+
+      <p>We compute the pairwise differences:</p>
+      <pre><code>ΔS = [s₂ − s₁, s₃ − s₂, ..., sₙ − sₙ₋₁]</code></pre>
+
+      <p>If plotted, these differences often reveal a sharp negative “jump” where the semantic closeness suddenly drops that’s our potential cutoff.</p>
+
+      <h2>The method: adaptive thresholding via z-scores</h2>
+      <p>We treat this as a statistical detection problem. First, compute the mean (μ) and standard deviation (σ) of the score differences:</p>
+      <pre><code>μ = mean(ΔS)
+σ = std(ΔS)</code></pre>
+
+      <p>Then, calculate the z-score for each gap:</p>
+      <pre><code>Zᵢ = (ΔSᵢ − μ) / σ</code></pre>
+
+      <p>Large negative z-scores correspond to significant drops candidate cutoff points. We choose all indices where:</p>
+      <pre><code>Zᵢ &lt; z_threshold</code></pre>
+
+      <p>To ensure stability, we add a second condition using the <strong>relative percentage difference</strong> between consecutive scores:</p>
+      <pre><code>Pᵢ = |sᵢ₊₁ − sᵢ| / sᵢ</code></pre>
+
+      <p>Only if this relative drop is smaller than a predefined threshold <code>t_D</code> do we confirm it as a valid cutoff. This guards against small fluctuations in noisy embeddings.</p>
+
+      <blockquote>In essence: we detect statistically significant changes in score gradients to let each query decide its own optimal cutoff rank.</blockquote>
+
+      <h2>Why this approach is different</h2>
+      <ul>
+        <li><strong>Per-query adaptivity:</strong> Each query can return a different number of results depending on score behavior.</li>
+        <li><strong>Statistical grounding:</strong> Uses z-score deviation instead of arbitrary thresholds.</li>
+        <li><strong>Bias correction:</strong> Handles flattened similarity distributions from templated or synthetic text.</li>
+        <li><strong>Model-agnostic:</strong> Works with any embedding model or similarity metric.</li>
+      </ul>
+
+      <p>While similar in spirit to “elbow detection” in clustering, this approach operates directly on <em>semantic similarity rankings</em> not on error metrics or variance. It’s a probabilistic, lightweight, and easily integrable layer atop any ranking pipeline.</p>
+
+      <div class="rule"></div>
+
+      <h2>Results: relevance that adapts</h2>
+      <p>Empirically, adaptive thresholding produces cleaner and more context-aware retrieval:</p>
+      <ul>
+        <li>Reduces irrelevant tail items in ambiguous queries.</li>
+        <li>Preserves strong relevance for clear queries.</li>
+        <li>Improves user satisfaction by returning variable-length, high-precision results.</li>
+      </ul>
+
+      <blockquote>Rather than asking “how many results should I show?”, we ask “where does relevance naturally stop?”</blockquote>
+
+      <h2>Comparison summary</h2>
+      <table border="1" cellpadding="6" cellspacing="0" style="border-collapse:collapse;border-color:var(--border);font-size:0.96rem;">
+        <tr><th>Approach</th><th>Behavior</th><th>Limitation</th></tr>
+        <tr><td>Fixed Top-N</td><td>Always returns same number of results</td><td>Fails for ambiguous or dense queries</td></tr>
+        <tr><td>Fixed Score Threshold</td><td>Cutoff by absolute similarity</td><td>Assumes uniform embedding scale</td></tr>
+        <tr><td>Adaptive Thresholding (ours)</td><td>Detects score drop-off per query</td><td>Requires computing μ, σ, z for ΔS</td></tr>
+      </table>
+
+      <div class="rule"></div>
+
+      <h2>Closing thoughts</h2>
+      <p>Traditional retrieval treats ranking as a deterministic list: return the top-N and move on. But information retrieval is inherently probabilistic every query carries its own ambiguity, structure, and score distribution.</p>
+
+      <p><strong>Adaptive Thresholding for Optimal Ranking</strong> reframes this process as a signal detection problem. By statistically identifying significant drops in similarity, it lets the data not arbitrary heuristics decide what’s relevant enough to show.</p>
+
+      <blockquote>In a world where embeddings are ever-improving, adaptivity isn’t optional it’s how semantic search stays honest about relevance.</blockquote>
+    </section>
+
+    <section class="footnotes">
+      <h2>References</h2>
+      <ul>
+        <li>Singh Gill, A., Patel, S., Varga, P., Miller, P., &amp; Athanasiadis, S. (2025). <em>Adaptive Thresholding for Optimal Ranking in Latent Semantic Spaces</em>. SIGIR ’25, Padua, Italy.</li>
+        <li>Knee Point Detection Algorithms (Satopaa et al., 2011). <em>Finding a “Kneedle” in a Haystack</em>.</li>
+        <li>Dynamic Cutoff Methods in Information Retrieval (Croft et al., 2015). <em>Search Engines: Information Retrieval in Practice</em>.</li>
+      </ul>
+    </section>
+  </article>
+</body>
+</html>
