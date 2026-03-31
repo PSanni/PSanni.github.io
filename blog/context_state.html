@@ -1,0 +1,519 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Memory States in AI Agents: How Context Engineering Is Evolving</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com"/>
+  <link href="https://fonts.googleapis.com/css2?family=Lora:ital,wght@0,400;0,600;1,400&family=JetBrains+Mono:wght@400;500&family=Inter:wght@400;500;600&display=swap" rel="stylesheet"/>
+  <style>
+    :root {
+      --bg: #faf9f6;
+      --surface: #ffffff;
+      --text: #1a1a1a;
+      --muted: #6b6b6b;
+      --accent: #2c5f8a;
+      --accent-light: #e8f0f8;
+      --border: #e2ddd8;
+      --code-bg: #f3f0ea;
+      --quote-border: #2c5f8a;
+      --tag: #edf3f9;
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      background: var(--bg);
+      color: var(--text);
+      font-family: 'Lora', Georgia, serif;
+      font-size: 17px;
+      line-height: 1.8;
+    }
+
+    .container {
+      max-width: 720px;
+      margin: 0 auto;
+      padding: 48px 24px 96px;
+    }
+
+    .back-link {
+      font-family: 'Inter', sans-serif;
+      font-size: 13px;
+      color: var(--accent);
+      text-decoration: none;
+      display: inline-block;
+      margin-bottom: 40px;
+      letter-spacing: 0.02em;
+    }
+    .back-link:hover { text-decoration: underline; }
+
+    h1 {
+      font-family: 'Lora', serif;
+      font-size: 2.1rem;
+      font-weight: 600;
+      line-height: 1.3;
+      margin-bottom: 12px;
+      color: var(--text);
+    }
+
+    .tagline {
+      font-family: 'Inter', sans-serif;
+      font-size: 15px;
+      color: var(--muted);
+      margin-bottom: 36px;
+      line-height: 1.6;
+    }
+
+    .meta {
+      font-family: 'Inter', sans-serif;
+      font-size: 13px;
+      color: var(--muted);
+      margin-bottom: 48px;
+      display: flex;
+      gap: 16px;
+      flex-wrap: wrap;
+    }
+
+    .meta span {
+      background: var(--tag);
+      color: var(--accent);
+      padding: 3px 10px;
+      border-radius: 12px;
+      font-weight: 500;
+    }
+
+    hr.divider {
+      border: none;
+      border-top: 1px solid var(--border);
+      margin: 40px 0;
+    }
+
+    p {
+      margin-bottom: 20px;
+      color: var(--text);
+    }
+
+    h2 {
+      font-family: 'Lora', serif;
+      font-size: 1.35rem;
+      font-weight: 600;
+      margin-top: 48px;
+      margin-bottom: 16px;
+      color: var(--text);
+    }
+
+    h3 {
+      font-family: 'Inter', sans-serif;
+      font-size: 1rem;
+      font-weight: 600;
+      margin-top: 32px;
+      margin-bottom: 10px;
+      color: var(--text);
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+    }
+
+    blockquote {
+      border-left: 3px solid var(--quote-border);
+      margin: 28px 0;
+      padding: 12px 20px;
+      background: var(--accent-light);
+      border-radius: 0 6px 6px 0;
+      font-style: italic;
+      color: #2a3f5a;
+      font-size: 1rem;
+    }
+
+    code {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 0.82rem;
+      background: var(--code-bg);
+      padding: 2px 6px;
+      border-radius: 4px;
+      color: #2c3e50;
+    }
+
+    pre {
+      background: var(--code-bg);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 20px;
+      overflow-x: auto;
+      margin: 24px 0;
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 0.82rem;
+      line-height: 1.7;
+      color: #2c3e50;
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      margin: 28px 0;
+      font-family: 'Inter', sans-serif;
+      font-size: 14px;
+    }
+
+    th {
+      background: var(--accent-light);
+      color: var(--accent);
+      text-align: left;
+      padding: 10px 14px;
+      font-weight: 600;
+      border-bottom: 2px solid var(--accent);
+    }
+
+    td {
+      padding: 10px 14px;
+      border-bottom: 1px solid var(--border);
+      vertical-align: top;
+    }
+
+    tr:last-child td { border-bottom: none; }
+    tr:hover td { background: var(--accent-light); }
+
+    .ref-list {
+      font-family: 'Inter', sans-serif;
+      font-size: 13px;
+      color: var(--muted);
+      line-height: 1.7;
+    }
+    .ref-list li {
+      margin-bottom: 8px;
+      list-style: none;
+      padding-left: 16px;
+      position: relative;
+    }
+    .ref-list li::before {
+      content: '·';
+      position: absolute;
+      left: 0;
+      color: var(--accent);
+    }
+    .ref-list a { color: var(--accent); text-decoration: none; }
+    .ref-list a:hover { text-decoration: underline; }
+
+    .section-label {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 11px;
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+      color: var(--accent);
+      margin-bottom: 8px;
+      display: block;
+    }
+
+    strong { font-weight: 600; }
+
+    @media (max-width: 600px) {
+      h1 { font-size: 1.7rem; }
+      body { font-size: 16px; }
+    }
+  </style>
+</head>
+<body>
+<div class="container">
+
+  <a class="back-link" href="https://www.sannipatel.me/blog.html">← Go back to blogs</a>
+
+  <h1>Memory States in AI Agents: How Context Engineering Is Evolving</h1>
+  <p class="tagline">A structured tour of the recent methods from vector stores to temporal knowledge graphs that give AI agents the ability to remember, reason, and adapt across sessions.</p>
+
+  <div class="meta">
+    <span>Memory Systems</span>
+    <span>AI Agents</span>
+    <span>Context Engineering</span>
+    <span>LLMs</span>
+  </div>
+
+  <hr class="divider"/>
+
+  <p>
+    Large language models are stateless by design. Every conversation begins fresh, with no recollection of what came before. For simple Q&amp;A this is perfectly fine. But as agents take on complex, multi-session workflows debugging a codebase over days, managing a customer relationship over months, conducting long-horizon research statefulness stops being a luxury and becomes a hard requirement.
+  </p>
+
+  <p>
+    The question researchers and engineers are racing to answer is not <em>whether</em> agents should have memory, but <em>how</em> that memory should be structured, stored, retrieved, and evolved. This post surveys the most significant methods in use today, with an eye on what makes each approach distinct.
+  </p>
+
+  <blockquote>
+    Memory transforms a stateless reactive model into a stateful adaptive entity one capable of relationship building, trajectory-based learning, and genuine personalization.
+  </blockquote>
+
+  <h2>Why the Context Window Is Not Enough</h2>
+
+  <p>
+    The <strong>context window</strong> is an agent's working memory everything immediately available for reasoning, answering, and acting. Designing an agent's memory is, fundamentally, context engineering: deciding which tokens enter that window, and how they're organized.
+  </p>
+
+  <p>
+    The problem is that context windows are bounded. Even with 128K or 200K token windows, long-running agents accumulate histories far too large to re-inject wholesale. The signal gets diluted. Costs compound. And the agent inevitably loses track of things it learned earlier.
+  </p>
+
+  <p>
+    This is why a new class of <em>external memory architectures</em> has emerged systems that offload, compress, and selectively retrieve context from outside the model. Three broad philosophies now dominate:
+  </p>
+
+  <ul style="padding-left:1.5rem; margin-bottom:20px; line-height:2;">
+    <li><strong>Memory as retrieval</strong> vector databases that surface the most relevant past fragments</li>
+    <li><strong>Memory as compression</strong> rolling summaries that condense history into a smaller footprint</li>
+    <li><strong>Memory as structure</strong> knowledge graphs that encode not just facts, but their relationships and temporality</li>
+  </ul>
+
+  <h2>Method 1: Vector Store Memory (RAG-based)</h2>
+
+  <p>
+    The earliest and most widely deployed approach. Interactions are embedded using a sentence encoder and stored in a vector database such as Pinecone, Weaviate, Qdrant, or FAISS. On each new query, the agent retrieves the top-<em>k</em> most semantically similar past fragments by cosine similarity and injects them into the context window.
+  </p>
+
+  <pre>
+# Canonical retrieval pattern
+query_embedding = embed(user_query)
+top_k_memories = vector_db.search(query_embedding, k=5)
+context = format_for_prompt(top_k_memories) + user_query
+  </pre>
+
+  <p>
+    This is fast, simple, and model-agnostic. Its weakness is surface-level recall it finds what <em>sounds</em> similar, not what is causally or relationally connected. Two memories that are semantically distant may still be deeply relevant to each other; cosine similarity alone cannot surface that link.
+  </p>
+
+  <blockquote>
+    Traditional RAG is insufficient for agent memory. It provides static document retrieval, but agents need dynamic knowledge that evolves with each interaction.
+  </blockquote>
+
+  <h2>Method 2: Hierarchical In-Context Memory (MemGPT / Letta)</h2>
+
+  <p>
+    MemGPT, reborn as <strong>Letta</strong>, introduced an operating-system-inspired memory hierarchy. The agent maintains distinct memory tiers, each with different latency and capacity characteristics:
+  </p>
+
+  <pre>
+Main Context (hot):
+  ├── Message Buffer    → recent conversation turns
+  ├── Core Memory       → pinned facts: user profile, persona, active goals
+  └── Working Notes     → agent-editable scratchpad
+
+External (cold):
+  ├── Recall Memory     → full interaction history (searchable on disk)
+  └── Archival Memory   → large document stores (retrieval via embeddings)
+  </pre>
+
+  <p>
+    The key innovation is that <strong>core memory blocks are editable by the agent itself</strong> the agent can write and overwrite them mid-conversation, effectively curating its own context. This turns memory management from a static indexing problem into a dynamic, agent-driven process.
+  </p>
+
+  <p>
+    Rather than passively retrieving from an external store, the agent actively decides what to remember and what to discard much like human working memory shunting information between short-term and long-term stores.
+  </p>
+
+  <h2>Method 3: Rolling Summarization</h2>
+
+  <p>
+    A lighter-weight alternative to full retrieval pipelines: the model periodically condenses the growing conversation transcript into a rolling summary. Instead of storing raw messages, the agent maintains a compressed representation of what happened and surfaces it as a prefix to each new prompt.
+  </p>
+
+  <pre>
+# Summarization-based session handoff
+summary_t = LLM.summarize(conversation_so_far)
+new_context = [system_prompt, summary_t] + recent_messages[-N:]
+  </pre>
+
+  <p>
+    Summarization is computationally cheap and integrates cleanly with any LLM. The tradeoff is lossy compression nuances, exact phrasing, and specific facts can be dropped. It works well when the agent needs continuity of <em>intent</em> more than verbatim recall of <em>content</em>.
+  </p>
+
+  <h2>Method 4: Temporal Knowledge Graphs (Zep / Graphiti)</h2>
+
+  <p>
+    The most structurally ambitious approach treats memory not as a flat store of text, but as a <strong>typed, time-stamped knowledge graph</strong>. Zep's Graphiti engine, introduced in January 2025, organizes agent memory into three hierarchical subgraphs:
+  </p>
+
+  <pre>
+Knowledge Graph G = (N, E, φ)
+
+├── Episode Subgraph (Gₑ)
+│     Raw input data: messages, text, JSON
+│     Non-lossy; source of entity extraction
+
+├── Semantic Entity Subgraph (Gₛ)
+│     Entities extracted from episodes
+│     Resolved and deduplicated across sessions
+
+└── Community Subgraph (Gᶜ)
+      Clusters of strongly connected entities
+      High-level summaries of cross-entity relationships
+  </pre>
+
+  <p>
+    On retrieval, vector search narrows candidate memories while graph traversal returns their relational context <em>who</em> did <em>what</em>, with <em>whom</em>, and <em>when</em>. This dual-channel retrieval mirrors how human memory interleaves episodic recall (specific events) with semantic recall (conceptual associations).
+  </p>
+
+  <p>
+    On the LongMemEval benchmark which stress-tests cross-session synthesis and temporal reasoning Zep's Graphiti achieves up to 18.5% accuracy improvement over baseline implementations while simultaneously reducing response latency by 90%.
+  </p>
+
+  <blockquote>
+    Graph-based memory captures not just what occurred, but why encoding causal and relational structure that vector similarity alone cannot represent.
+  </blockquote>
+
+  <h2>Method 5: Agentic Memory (A-MEM and Zettelkasten Architectures)</h2>
+
+  <p>
+    A-MEM (2025) draws inspiration from the <strong>Zettelkasten</strong> method a note-taking philosophy where ideas are not stored in isolation but linked explicitly to related ideas. Each memory unit is created with typed outgoing links to other memories, forming an interconnected knowledge network that grows denser and more useful over time.
+  </p>
+
+  <p>
+    Unlike passive storage systems, A-MEM allows memory to evolve autonomously: as new interactions arrive, the agent can create new notes, update existing ones, and add new links no human curator required. This positions memory as an active, self-organizing substrate for reasoning rather than a passive archive.
+  </p>
+
+  <h2>Method 6: Session Memory Consolidation (OpenAI Agents SDK Pattern)</h2>
+
+  <p>
+    A practical pattern emerging in production systems separates memory into two explicitly staged tiers:
+  </p>
+
+  <pre>
+@dataclass
+class AgentState:
+    profile: Dict            # static user facts (CRM data)
+    global_memory: Notes     # long-term, cross-session preferences
+    session_memory: Notes    # in-session observations (staging)
+
+# At session end: promote only high-signal session notes to global
+def consolidate(state):
+    for note in state.session_memory.notes:
+        if signal_strength(note) > threshold:
+            state.global_memory.notes.append(note)
+    state.session_memory.notes.clear()
+  </pre>
+
+  <p>
+    Session memory accumulates observations during a single interaction. At session close, a consolidation function powered by an LLM evaluates each note and promotes only the ones that carry durable signal into global memory. This prevents noise accumulation and keeps the long-term store clean.
+  </p>
+
+  <h2>Method 7: Reinforcement Learning on Episodic Memory (MemRL)</h2>
+
+  <p>
+    The most recent frontier: rather than hand-engineering memory management rules, train the agent to learn them. MemRL (January 2026) frames memory management as a reinforcement learning problem the agent receives reward signals for correctly leveraging past experience and is penalized for ignoring relevant history or hallucinating.
+  </p>
+
+  <p>
+    Over time, the agent develops a <em>policy</em> for what to write to memory, when to retrieve, and how to use retrieved context in its reasoning chain. This makes memory not just a passive data store but an active, learned capability one that improves with deployment rather than degrading.
+  </p>
+
+  <blockquote>
+    MemRL and similar approaches signal a shift from memory as infrastructure to memory as a learned cognitive skill one the agent gets better at over its operational lifetime.
+  </blockquote>
+
+  <h2>The Four Dimensions of Memory Design</h2>
+
+  <p>Any memory system for an AI agent must make explicit design choices along four axes:</p>
+
+  <pre>
+1. TEMPORAL SCOPE
+   Short-term (within session) ←→ Long-term (cross-session)
+
+2. STRUCTURE
+   Flat text buffers ←→ Typed knowledge graphs
+
+3. AGENCY
+   Passive retrieval ←→ Agent-managed read/write
+
+4. EVOLUTION
+   Static archives ←→ Self-updating, RL-trained memory
+  </pre>
+
+  <p>
+    The methods surveyed above occupy different positions in this design space. No single approach dominates all four axes production systems increasingly combine them in hybrid architectures.
+  </p>
+
+  <h2>Comparison Summary</h2>
+
+  <table>
+    <thead>
+      <tr>
+        <th>Method</th>
+        <th>Structure</th>
+        <th>Strengths</th>
+        <th>Limitations</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td>Vector Store (RAG)</td>
+        <td>Flat embeddings</td>
+        <td>Fast, model-agnostic, scalable</td>
+        <td>Surface-level recall; no relational context</td>
+      </tr>
+      <tr>
+        <td>Hierarchical (Letta/MemGPT)</td>
+        <td>Tiered in-context + archival</td>
+        <td>Agent-editable; fine-grained control</td>
+        <td>Engineering complexity; per-agent state management</td>
+      </tr>
+      <tr>
+        <td>Rolling Summarization</td>
+        <td>Compressed text</td>
+        <td>Lightweight; easy integration</td>
+        <td>Lossy; loses verbatim facts and nuance</td>
+      </tr>
+      <tr>
+        <td>Temporal Knowledge Graph (Zep)</td>
+        <td>Typed graph with timestamps</td>
+        <td>Relational + temporal reasoning; high accuracy</td>
+        <td>Higher setup cost; graph maintenance overhead</td>
+      </tr>
+      <tr>
+        <td>Agentic (A-MEM / Zettelkasten)</td>
+        <td>Linked note network</td>
+        <td>Self-organizing; grows richer over time</td>
+        <td>Link quality depends on extraction quality</td>
+      </tr>
+      <tr>
+        <td>Session Consolidation</td>
+        <td>Staged tiers (session → global)</td>
+        <td>Practical; controls noise accumulation</td>
+        <td>Requires good consolidation heuristics</td>
+      </tr>
+      <tr>
+        <td>RL on Episodic Memory (MemRL)</td>
+        <td>Policy-learned memory ops</td>
+        <td>Self-improving; adapts to task domain</td>
+        <td>Requires training infrastructure and reward design</td>
+      </tr>
+    </tbody>
+  </table>
+
+  <h2>Closing Thoughts</h2>
+
+  <p>
+    For most of AI's short history, memory was treated as a footnote a post-hoc patch applied to stateless models. That framing is giving way to something more fundamental. Memory is increasingly understood as the mechanism that converts a capable model into a capable <em>agent</em>: one that accumulates experience, maintains coherent identity across sessions, and improves through use rather than despite it.
+  </p>
+
+  <p>
+    The trajectory from flat vector stores to temporal knowledge graphs to RL-trained memory policies mirrors a longer arc in cognitive science: from filing-cabinet models of human memory toward dynamic, reconstructive, and relational accounts. As AI agents grow more capable, their memory architectures will need to keep pace not just storing more, but structuring and evolving what they store in ways that genuinely serve reasoning.
+  </p>
+
+  <blockquote>
+    The question is no longer whether agents should remember. It is how memory should be structured so that what is remembered is actually useful retrieved at the right moment, in the right form, with the right relational context.
+  </blockquote>
+
+  <hr class="divider"/>
+
+  <h3>References</h3>
+  <ul class="ref-list">
+    <li>Zhang, G. et al. (2025). <em>Memory in the Age of AI Agents.</em> arXiv:2512.13564.</li>
+    <li>Rasmussen, P. et al. (2025). <em>Zep: A Temporal Knowledge Graph Architecture for Agent Memory.</em> arXiv:2501.13956.</li>
+    <li>Packer, C. et al. (2023). <em>MemGPT: Towards LLMs as Operating Systems.</em> Letta / arXiv:2310.05265.</li>
+    <li>Xu, W. et al. (2025). <em>A-MEM: Agentic Memory for LLM Agents.</em> arXiv:2502.12110.</li>
+    <li>Yang, C. et al. (2026). <em>Graph-based Agent Memory: Taxonomy, Techniques, and Applications.</em> arXiv:2602.05665.</li>
+    <li>Chhikara, P. et al. (2025). <em>Mem0: Building Production-Ready AI Agents with Scalable Long-Term Memory.</em> arXiv:2504.19413.</li>
+    <li>MemRL: Self-Evolving Agents via Runtime Reinforcement Learning on Episodic Memory (2026). <a href="https://github.com/Shichun-Liu/Agent-Memory-Paper-List">Agent Memory Paper List.</a></li>
+    <li>OpenAI. (2025). <em>Context Engineering for Personalization State Management with Long-Term Memory Notes.</em> OpenAI Cookbook.</li>
+    <li>Amazon Web Services. (2025). <em>Building smarter AI agents: AgentCore long-term memory deep dive.</em> AWS ML Blog.</li>
+    <li>LangChain. (2025). <em>LangMem SDK for agent long-term memory.</em> LangChain Blog.</li>
+  </ul>
+
+</div>
+</body>
+</html>
