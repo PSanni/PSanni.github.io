@@ -1,0 +1,721 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>What Production AI Architecture Actually Looks Like</title>
+  <meta name="description" content="A detailed breakdown of production AI architecture: services, agents, prompts, security, evaluation, observability, and context engineering." />
+  <style>
+    :root {
+      --bg: #ffffff;
+      --fg: #111111;
+      --muted: #666666;
+      --line: #e8e8e8;
+      --soft: #f7f7f7;
+      --code-bg: #fafafa;
+      --max: 760px;
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    html {
+      scroll-behavior: smooth;
+    }
+
+    body {
+      margin: 0;
+      background: var(--bg);
+      color: var(--fg);
+      font-family: Georgia, "Times New Roman", Times, serif;
+      line-height: 1.75;
+      -webkit-font-smoothing: antialiased;
+      text-rendering: optimizeLegibility;
+    }
+
+    .container {
+      max-width: var(--max);
+      margin: 0 auto;
+      padding: 40px 24px 80px;
+    }
+
+    .back-link {
+      display: inline-block;
+      margin-bottom: 18px;
+      color: var(--muted);
+      text-decoration: none;
+      font-size: 0.98rem;
+    }
+
+    .back-link:hover {
+      text-decoration: underline;
+    }
+
+    h1, h2, h3 {
+      font-family: Georgia, "Times New Roman", Times, serif;
+      font-weight: 700;
+      line-height: 1.2;
+      margin: 0 0 16px;
+      letter-spacing: -0.02em;
+    }
+
+    h1 {
+      font-size: clamp(2.2rem, 5vw, 3.2rem);
+    }
+
+    h2 {
+      font-size: 1.65rem;
+      margin-top: 42px;
+    }
+
+    h3 {
+      font-size: 1.18rem;
+      margin-top: 24px;
+    }
+
+    p {
+      margin: 0 0 18px;
+      font-size: 1.08rem;
+    }
+
+    .dek {
+      font-size: 1.13rem;
+      color: #333;
+      margin-bottom: 18px;
+    }
+
+    .meta {
+      color: var(--muted);
+      font-size: 0.95rem;
+      margin-bottom: 26px;
+    }
+
+    hr {
+      border: 0;
+      border-top: 1px solid var(--line);
+      margin: 28px 0 34px;
+    }
+
+    blockquote {
+      margin: 22px 0;
+      padding: 0 0 0 18px;
+      border-left: 3px solid #d9d9d9;
+      color: #222;
+      font-style: italic;
+    }
+
+    code {
+      font-family: "SFMono-Regular", Menlo, Consolas, "Liberation Mono", monospace;
+      font-size: 0.95em;
+      background: var(--soft);
+      padding: 0.12rem 0.34rem;
+      border-radius: 4px;
+    }
+
+    pre {
+      margin: 18px 0 24px;
+      padding: 16px 18px;
+      overflow-x: auto;
+      background: var(--code-bg);
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      line-height: 1.6;
+      font-size: 0.95rem;
+    }
+
+    pre code {
+      background: transparent;
+      padding: 0;
+      border-radius: 0;
+    }
+
+    ul {
+      margin: 0 0 20px 22px;
+      padding: 0;
+    }
+
+    li {
+      margin: 0 0 10px;
+      font-size: 1.06rem;
+    }
+
+    .tag-row {
+      color: var(--muted);
+      font-size: 0.95rem;
+      margin-bottom: 8px;
+      word-spacing: 0.15rem;
+    }
+
+    .section-note {
+      color: var(--muted);
+      font-size: 0.98rem;
+    }
+
+    .footer {
+      margin-top: 54px;
+      padding-top: 20px;
+      border-top: 1px solid var(--line);
+      color: var(--muted);
+      font-size: 0.95rem;
+    }
+
+    @media (max-width: 640px) {
+      .container {
+        padding: 28px 18px 64px;
+      }
+
+      p, li {
+        font-size: 1.02rem;
+      }
+    }
+  </style>
+</head>
+<body>
+  <main class="container">
+    <a href="https://www.sannipatel.me/blog.html" class="back-link">← Go back to blogs</a>
+
+    <article>
+      <header>
+        <h1>What Production AI Architecture Actually Looks Like</h1>
+        <p class="dek">
+          A detailed walkthrough of the layers I think matter most in a real AI system:
+          services, agents, prompts, security, evaluation, observability, and context
+          engineering.
+        </p>
+        <div class="tag-row">AI Architecture Production Systems Agents RAG Observability Evaluation Security</div>
+      </header>
+
+      <hr />
+
+      <p>
+        I think a lot of confusion around AI products comes from the fact that demos and
+        production systems get talked about as if they are the same thing. They are not.
+        A demo can be one prompt, one API call, one UI, and one happy-path example.
+        Production is where the real engineering starts.
+      </p>
+
+      <p>
+        Once real users show up, the problem changes completely. Now I need to worry about
+        retrieval quality, memory, routing, safety, evaluation, costs, latency, debugging,
+        and feedback loops. The model is still important, but the model is no longer the whole
+        system. It becomes one component inside a much larger control structure.
+      </p>
+
+      <blockquote>
+        The real shift happens when I stop thinking “How do I call the model?” and start
+        thinking “How do I make the whole system reliable around a non-deterministic core?”
+      </blockquote>
+
+      <p>
+        That is the frame I want to use in this post. I am not looking at production AI as
+        “prompting plus wrappers.” I am looking at it as a layered architecture where each
+        part exists to solve a very specific class of failure.
+      </p>
+
+      <h2>Why a Production AI System Needs Layers</h2>
+
+      <p>
+        Traditional software is mostly deterministic. Given the same input and the same state,
+        I expect the same output. Large language models do not work that way. Even when they
+        are extremely capable, they are probabilistic systems. That means I cannot just rely
+        on the generation step and hope everything around it somehow works out.
+      </p>
+
+      <p>
+        In practice, a production AI application needs answers to questions like these:
+      </p>
+
+      <ul>
+        <li>How do I gather the right context before generation?</li>
+        <li>How do I route simple requests differently from complex ones?</li>
+        <li>How do I stop unsafe input or unsafe output?</li>
+        <li>How do I know whether retrieval actually worked?</li>
+        <li>How do I debug a bad answer after a user reports it?</li>
+        <li>How do I measure whether a change improved quality or just changed behavior?</li>
+        <li>How do I keep costs under control as usage grows?</li>
+      </ul>
+
+      <p>
+        Every serious AI stack eventually grows layers because each of those questions needs a
+        concrete answer. When those answers are not explicit, teams end up with tangled prompt
+        code, accidental complexity, and no clean way to improve the system.
+      </p>
+
+      <h2>1. Services Layer: The Core Capabilities</h2>
+
+      <p>
+        I think of the services layer as the cognitive plumbing of the system. This is where
+        the reusable capabilities live. Not the UI. Not the page components. Not the HTTP
+        routes. The actual intelligence infrastructure.
+      </p>
+
+      <p>
+        In most real systems, this layer includes things like a RAG pipeline, semantic cache,
+        memory service, query rewriter, and router. Each of those solves a different context
+        problem.
+      </p>
+
+      <h3>RAG Pipeline</h3>
+
+      <p>
+        Retrieval-augmented generation is usually the first service I reach for when the model
+        needs information outside its training knowledge or outside the user’s immediate prompt.
+        But “RAG” is not one step. It is a sequence of design choices.
+      </p>
+
+      <pre><code># A simplified production-minded retrieval path
+
+user_query
+  → normalize()
+  → rewrite_for_search()
+  → retrieve_candidates()
+  → rerank()
+  → filter()
+  → assemble_context()
+  → generate_answer()</code></pre>
+
+      <p>
+        The quality of the final answer depends heavily on everything before generation. Bad
+        chunking hurts recall. Weak metadata hurts filtering. Poor ranking surfaces the wrong
+        evidence. Missing citations make it harder to audit. This is why I do not treat RAG
+        like a helper function. I treat it like infrastructure.
+      </p>
+
+      <h3>Semantic Cache</h3>
+
+      <p>
+        A normal cache works when the same request repeats exactly. A semantic cache works when
+        the intent repeats in slightly different language. That matters because users rarely ask
+        the same question in the same words, but they often ask the same thing.
+      </p>
+
+      <p>
+        This layer can save cost and latency, but only if I am careful. If my similarity
+        threshold is too loose, I can reuse an answer that is close enough linguistically but
+        wrong for the actual context. So even optimization layers in AI systems need quality
+        discipline.
+      </p>
+
+      <h3>Memory Service</h3>
+
+      <p>
+        Memory is one of the most overloaded words in AI. I like to split it into separate
+        categories:
+      </p>
+
+      <ul>
+        <li>session memory for what is happening now</li>
+        <li>user memory for durable preferences or profile data</li>
+        <li>task memory for intermediate steps and tool outputs</li>
+        <li>organizational memory for external knowledge and prior activity</li>
+      </ul>
+
+      <p>
+        The important thing for me is that memory should be explicit. If memory only exists as
+        hidden prompt text, it becomes hard to reason about what is being stored, why it is
+        being recalled, and how it should be governed.
+      </p>
+
+      <h3>Query Rewriter</h3>
+
+      <p>
+        Users are often vague, conversational, and incomplete. Retrieval systems prefer
+        sharper intent. That makes query rewriting one of the highest-leverage services in the
+        entire stack.
+      </p>
+
+      <pre><code>User: "what happened with the billing issue from before?"
+Rewriter:
+  "Retrieve prior support incidents related to billing failures
+   for this account in the last 90 days, including escalation notes."</code></pre>
+
+      <p>
+        A good rewriter can dramatically improve retrieval without the user even realizing it.
+        A bad one can distort intent. So this is another place where evaluation matters just as
+        much as implementation.
+      </p>
+
+      <h3>Router</h3>
+
+      <p>
+        Not every request deserves the same workflow. Some questions are cheap and obvious.
+        Others are ambiguous, multi-step, or risky. The router decides which path the system
+        should take.
+      </p>
+
+      <ul>
+        <li>simple FAQ → direct answer path</li>
+        <li>knowledge request → RAG path</li>
+        <li>tool-heavy workflow → agent path</li>
+        <li>sensitive request → stricter review path</li>
+        <li>low-confidence case → fallback or refusal path</li>
+      </ul>
+
+      <p>
+        Routing is how I avoid both under-engineering and over-engineering. Without it, every
+        request ends up going through the most expensive path or the weakest one.
+      </p>
+
+      <h2>2. Agents Layer: Adaptive Orchestration</h2>
+
+      <p>
+        I do not think every AI workflow needs an agent. In fact, one of the easiest mistakes to
+        make is turning a perfectly manageable pipeline into an agent just because the word sounds
+        sophisticated. Still, there are cases where agentic control is genuinely useful.
+      </p>
+
+      <p>
+        I use the term <em>agent</em> for a loop that can inspect a task, decide what to do next,
+        use tools or services, observe the outcome, and adjust. That is different from a
+        single-shot prompt.
+      </p>
+
+      <pre><code>while not done:
+    inspect_state()
+    choose_next_action()
+    use_tool_or_service()
+    evaluate_result()
+    continue_or_stop()</code></pre>
+
+      <h3>Document Grader</h3>
+
+      <p>
+        One of the most practical agent patterns is a document grader. Retrieval often returns
+        something, but not necessarily something good enough. A grader checks relevance,
+        authority, sufficiency, or contradiction before the system leans on that evidence.
+      </p>
+
+      <p>
+        That sounds simple, but it solves a huge problem. Many “model hallucinations” actually
+        start as retrieval failures. The system found weak support, then generated with too much
+        confidence. A grading layer helps break that chain.
+      </p>
+
+      <h3>Decomposer</h3>
+
+      <p>
+        Some user requests are really bundles of tasks disguised as one sentence. A decomposer
+        turns them into smaller units the rest of the system can handle.
+      </p>
+
+      <pre><code>User request:
+"Compare Q1 churn drivers to Q4, identify the segments that worsened,
+and draft an executive summary."
+
+Decomposed plan:
+1. Retrieve Q1 churn factors
+2. Retrieve Q4 churn factors
+3. Compare segment-level changes
+4. Rank the biggest regressions
+5. Draft summary for executives</code></pre>
+
+      <p>
+        That decomposition reduces reasoning load and makes the workflow easier to trace,
+        evaluate, and debug.
+      </p>
+
+      <h3>Adaptive Router</h3>
+
+      <p>
+        A static router chooses the initial path. An adaptive router changes course as new
+        evidence comes in. Maybe retrieval confidence is poor. Maybe a tool failed. Maybe the
+        answer is getting too expensive to generate. The system should be able to react instead
+        of blindly continuing.
+      </p>
+
+      <blockquote>
+        The value of an agent is not that it can do many things. The value is that it can
+        change strategy when the first thing is not working.
+      </blockquote>
+
+      <h2>3. Prompts Layer: Managed, Typed, Versioned</h2>
+
+      <p>
+        One of the strongest signals of AI maturity is how a team treats prompts. If prompts are
+        scattered as random inline strings across files, the system becomes hard to govern and
+        even harder to improve.
+      </p>
+
+      <p>
+        I prefer prompts to be versioned, typed, and registered.
+      </p>
+
+      <h3>Versioned Prompts</h3>
+
+      <p>
+        Prompt changes affect system behavior just like code changes do. If I cannot track which
+        prompt version was active when quality improved or regressed, I am basically operating
+        without change control.
+      </p>
+
+      <pre><code>prompt_registry = {
+  "answer_with_citations": "v3",
+  "grade_retrieval_quality": "v2",
+  "summarize_incident": "v4"
+}</code></pre>
+
+      <h3>Typed Prompts</h3>
+
+      <p>
+        By typed prompts, I mean prompts that act like structured interfaces. Instead of a loose
+        text blob, I define expected inputs such as the user query, retrieved context, policy
+        boundaries, output format, and refusal conditions.
+      </p>
+
+      <p>
+        This helps me validate that the right information was supplied and reduces fragile prompt
+        assembly bugs.
+      </p>
+
+      <h3>Registered Prompts</h3>
+
+      <p>
+        Registration makes prompts reusable system assets. It also makes them easier to test.
+        Once prompt templates are first-class citizens, I can run evaluations against them,
+        compare versions, and roll back changes cleanly.
+      </p>
+
+      <h2>4. Security Layer: Input, Context, Output</h2>
+
+      <p>
+        I do not like thinking about AI safety as one moderation call. In practice, there are at
+        least three distinct guard surfaces: what enters the system, what enters the model’s
+        context, and what leaves the system.
+      </p>
+
+      <h3>Input Guard</h3>
+
+      <p>
+        This is where I look for prompt injection, jailbreak attempts, unsafe instructions,
+        abusive content, malformed payloads, or sensitive data that should not proceed without
+        stricter handling.
+      </p>
+
+      <h3>Context Guard</h3>
+
+      <p>
+        This one matters more than many teams realize. Even if the user input is benign, the
+        retrieved documents, uploaded files, or tool outputs might contain malicious instructions,
+        secrets, or toxic content. If I am doing RAG or tool use, I need to inspect the context
+        layer too.
+      </p>
+
+      <h3>Output Guard</h3>
+
+      <p>
+        Before returning or executing anything, I want checks for unsafe content, unsupported
+        claims, schema validity, action permissions, and business-policy compliance. A bad output
+        is not just a content problem. It can be a trust problem, a legal problem, or an
+        operational problem.
+      </p>
+
+      <pre><code>request
+  → input guard
+  → context assembly
+  → context guard
+  → model / tools
+  → output guard
+  → user</code></pre>
+
+      <p>
+        This layered approach works better because attacks and failures show up at different
+        phases. One checkpoint is not enough.
+      </p>
+
+      <h2>5. Evaluation Layer: The Difference Between Shipping and Guessing</h2>
+
+      <p>
+        If I had to point to the most skipped layer in AI systems, it would be evaluation. A lot
+        of teams are still changing prompts, models, retrieval strategies, and routing rules based
+        on intuition and spot-checking. That is not a reliable way to build.
+      </p>
+
+      <h3>Golden Dataset</h3>
+
+      <p>
+        I want a benchmark set of representative examples I care about: normal requests, edge
+        cases, refusal cases, adversarial cases, and the kinds of questions users ask most often.
+        That becomes the anchor for measuring change over time.
+      </p>
+
+      <h3>Offline Evaluation</h3>
+
+      <p>
+        Before exposing changes widely, I want to test them against that benchmark. This lets me
+        compare versions of prompts, models, retrievers, and routing strategies safely.
+      </p>
+
+      <ul>
+        <li>correctness</li>
+        <li>grounding quality</li>
+        <li>citation accuracy</li>
+        <li>completeness</li>
+        <li>refusal quality</li>
+        <li>latency</li>
+        <li>cost</li>
+      </ul>
+
+      <h3>Online Monitoring</h3>
+
+      <p>
+        Offline evaluation is necessary, but it cannot predict every real-world behavior. Once the
+        system is live, I want ongoing visibility into how it performs in production: bad-answer
+        rates, user feedback, fallback frequency, retrieval misses, guardrail triggers, latency
+        drift, and cost drift.
+      </p>
+
+      <blockquote>
+        Without evaluation, every change feels like progress. With evaluation, I can tell the
+        difference between improvement and movement.
+      </blockquote>
+
+      <h2>6. Observability Layer: Making the System Debuggable</h2>
+
+      <p>
+        AI systems are much harder to debug when all I can see is the final answer. I need
+        traces across the whole request lifecycle.
+      </p>
+
+      <pre><code>trace = {
+  "user_input": ...,
+  "rewritten_query": ...,
+  "retrieved_docs": ...,
+  "reranked_docs": ...,
+  "selected_route": ...,
+  "prompt_version": ...,
+  "model_calls": ...,
+  "tool_calls": ...,
+  "guardrail_events": ...,
+  "final_output": ...,
+  "latency_ms": ...,
+  "cost_usd": ...
+}</code></pre>
+
+      <p>
+        Once I have per-stage tracing, debugging becomes much more concrete. I can see whether the
+        problem started with retrieval, routing, prompt design, or generation. That changes the
+        improvement loop completely.
+      </p>
+
+      <h3>Feedback Linked to Traces</h3>
+
+      <p>
+        User feedback is far more valuable when it is attached to the underlying trace. A thumbs
+        down by itself tells me something went wrong. A thumbs down attached to the exact route,
+        prompt version, documents, and model call tells me where to investigate.
+      </p>
+
+      <h3>Cost Per Query</h3>
+
+      <p>
+        I also want cost visible at the same level of detail. A system can be technically correct
+        and still be economically broken. If a certain workflow keeps triggering too many tool
+        calls or too-large models, I want that to be obvious immediately.
+      </p>
+
+      <h2>7. Context Engineering and Project Memory</h2>
+
+      <p>
+        One of the most underrated ideas in modern AI development is that context should be
+        engineered, not improvised. This applies not just to end-user prompts but also to coding
+        assistants, internal agents, and system workflows.
+      </p>
+
+      <p>
+        When I give an AI assistant access to a codebase, I do not want it guessing the project
+        structure from scratch every time. I want it to understand service boundaries, naming
+        conventions, coding standards, architectural constraints, and where certain kinds of logic
+        are supposed to live.
+      </p>
+
+      <pre><code>.project-context/
+  architecture.md
+  coding-standards.md
+  service-map.md
+  domain-terms.md
+  prompt-registry.md
+  runbooks/
+  examples/</code></pre>
+
+      <p>
+        This kind of project memory helps an AI assistant behave more like a participant in the
+        system and less like a stateless autocomplete engine. The same principle extends to any
+        AI workflow: good context is not accidental. It is designed.
+      </p>
+
+      <h2>How the Layers Work Together</h2>
+
+      <p>
+        The most useful way I have found to think about all of this is not as a directory tree,
+        but as a loop.
+      </p>
+
+      <pre><code>1. User sends request
+2. Input guard checks it
+3. Query is rewritten
+4. Router chooses a path
+5. Services retrieve and assemble context
+6. Agents inspect or adapt if needed
+7. Prompt layer structures the generation task
+8. Model produces output
+9. Output guard checks the result
+10. Observability records the full trace
+11. Evaluation uses traces and outcomes to improve the system</code></pre>
+
+      <p>
+        That loop is the real architecture. The folders and components only matter because they
+        make the loop manageable.
+      </p>
+
+      <h2>What I Think the Real Lesson Is</h2>
+
+      <p>
+        The main lesson for me is that production AI is really about uncertainty management. I am
+        not building around a perfectly predictable engine. I am building around a powerful but
+        probabilistic component. So the job of the architecture is to surround that component with
+        structure, constraints, measurement, and feedback.
+      </p>
+
+      <p>
+        That is why I keep coming back to the same set of layers:
+      </p>
+
+      <ul>
+        <li>services to gather and shape context</li>
+        <li>agents to adapt and orchestrate</li>
+        <li>prompts to formalize generation behavior</li>
+        <li>security to guard every major surface</li>
+        <li>evaluation to measure quality</li>
+        <li>observability to explain behavior</li>
+        <li>context engineering to keep the whole system grounded</li>
+      </ul>
+
+      <p>
+        A demo proves the model can do something interesting. A production architecture proves the
+        system can do it repeatedly, safely, visibly, and at a cost that makes sense.
+      </p>
+
+      <blockquote>
+        That is the difference I care about most: not whether the model can produce a great answer
+        once, but whether the system can keep producing trustworthy answers under real conditions.
+      </blockquote>
+
+      <h2>Conclusion</h2>
+
+      <p>
+        I think the industry is moving past the phase where “AI app” means a chat box and a model
+        call. The systems that actually hold up are the ones that treat AI as one part of a larger
+        architecture. They separate concerns. They track behavior. They evaluate changes. They
+        design context deliberately. They assume failure modes will happen and build the control
+        layers up front.
+      </p>
+
+      <p>
+        That is what production AI looks like to me. Not a single prompt. Not a magical wrapper.
+        A layered system built to make intelligence usable in the real world.
+      </p>
+    </article>
+  </main>
+</body>
+</html>
