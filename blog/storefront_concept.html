@@ -1,0 +1,1289 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Maison Aldwych — for Maya</title>
+<meta name="description" content="An inspirational concept of an agentic storefront — a real brand webpage where every section is generated for the specific shopper visiting.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@300;400;500;600;700&family=Inter:wght@300;400;500;600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #f5f1ea;
+    --bg-alt: #ebe5d8;
+    --paper: #ffffff;
+    --ink: #1c1a16;
+    --ink-soft: #3d3a33;
+    --muted: #807a6e;
+    --rule: #d8d2c2;
+    --rule-soft: #e6e0d0;
+    --accent: #8b3a1f;
+    --accent-soft: #f0e3d8;
+    --gold: #b8956a;
+    --warning-bg: #f7e8d4;
+    --warning-ink: #8b5a2b;
+    --success-bg: #e0e8d8;
+    --success-ink: #4a6b3a;
+    --agent-bg: #1c1a16;
+    --agent-ink: #f5f1ea;
+  }
+
+  * { box-sizing: border-box; }
+  html { -webkit-font-smoothing: antialiased; -moz-osx-font-smoothing: grayscale; scroll-behavior: smooth; }
+
+  body {
+    margin: 0;
+    background: var(--bg);
+    color: var(--ink);
+    font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+    font-size: 15px;
+    line-height: 1.6;
+    font-weight: 400;
+  }
+
+  /* ─── Agent watermark — always visible reminder ─── */
+  .agent-watermark {
+    position: fixed;
+    bottom: 18px;
+    right: 18px;
+    z-index: 90;
+    background: var(--agent-bg);
+    color: var(--agent-ink);
+    padding: 10px 14px;
+    border-radius: 4px;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 11px;
+    line-height: 1.5;
+    max-width: 280px;
+    box-shadow: 0 8px 24px rgba(0,0,0,0.12);
+  }
+  .agent-watermark .label {
+    color: var(--gold);
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    font-size: 9.5px;
+    margin-bottom: 4px;
+  }
+  .agent-watermark .who {
+    color: var(--agent-ink);
+    font-size: 11.5px;
+    margin-bottom: 2px;
+  }
+  .agent-watermark .signal {
+    color: rgba(245, 241, 234, 0.55);
+    font-size: 10.5px;
+  }
+
+  /* ─── Top bar ─── */
+  .topbar {
+    background: var(--ink);
+    color: var(--bg);
+    padding: 8px 24px;
+    text-align: center;
+    font-size: 12px;
+    letter-spacing: 0.04em;
+  }
+  .topbar .for-you {
+    color: var(--gold);
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 10.5px;
+    text-transform: uppercase;
+    letter-spacing: 0.12em;
+    margin-right: 10px;
+  }
+
+  /* ─── Nav ─── */
+  .nav {
+    background: var(--bg);
+    border-bottom: 1px solid var(--rule);
+    padding: 18px 32px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    position: sticky;
+    top: 0;
+    z-index: 80;
+  }
+  .nav-logo {
+    font-family: 'Cormorant Garamond', Georgia, serif;
+    font-size: 22px;
+    font-weight: 500;
+    letter-spacing: 0.06em;
+    color: var(--ink);
+    text-transform: uppercase;
+  }
+  .nav-logo .small { font-size: 11px; letter-spacing: 0.18em; display: block; color: var(--muted); margin-top: -2px;}
+  .nav-links {
+    display: flex;
+    gap: 28px;
+    font-size: 13px;
+    color: var(--ink-soft);
+  }
+  .nav-links a {
+    color: inherit;
+    text-decoration: none;
+    border-bottom: 1px solid transparent;
+    padding-bottom: 2px;
+    transition: border-color 0.15s ease;
+  }
+  .nav-links a:hover { border-bottom-color: var(--accent); }
+  .nav-links a.tagged {
+    color: var(--accent);
+  }
+  .nav-links a.tagged::after {
+    content: '·';
+    color: var(--gold);
+    margin-left: 6px;
+    font-weight: 700;
+  }
+  .nav-right {
+    display: flex;
+    gap: 18px;
+    font-size: 13px;
+    color: var(--ink-soft);
+    align-items: center;
+  }
+  .nav-right a { color: inherit; text-decoration: none; }
+  .nav-greeting {
+    font-family: 'Cormorant Garamond', serif;
+    font-style: italic;
+    color: var(--muted);
+    font-size: 14px;
+  }
+
+  /* ─── Page container ─── */
+  .page { max-width: 1280px; margin: 0 auto; }
+
+  /* ─── Hero ─── */
+  .hero {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    min-height: 480px;
+    background: var(--paper);
+  }
+  .hero-image {
+    background: linear-gradient(135deg, #6b5847 0%, #4a3d2f 60%, #2d2520 100%);
+    position: relative;
+    overflow: hidden;
+  }
+  .hero-image::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background-image:
+      radial-gradient(ellipse at 30% 40%, rgba(184, 149, 106, 0.15), transparent 60%),
+      radial-gradient(ellipse at 70% 70%, rgba(0, 0, 0, 0.3), transparent 50%);
+  }
+  .hero-image::after {
+    content: '';
+    position: absolute;
+    bottom: 18px;
+    left: 18px;
+    width: 80px;
+    height: 1px;
+    background: rgba(245, 241, 234, 0.5);
+  }
+  .hero-image-tag {
+    position: absolute;
+    bottom: 28px;
+    left: 28px;
+    color: rgba(245, 241, 234, 0.7);
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 10px;
+    text-transform: uppercase;
+    letter-spacing: 0.15em;
+  }
+  .hero-content {
+    padding: 64px 56px;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+  }
+  .hero-eyebrow {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 10.5px;
+    text-transform: uppercase;
+    letter-spacing: 0.18em;
+    color: var(--accent);
+    margin-bottom: 18px;
+  }
+  .hero h1 {
+    font-family: 'Cormorant Garamond', Georgia, serif;
+    font-size: 44px;
+    line-height: 1.08;
+    font-weight: 400;
+    letter-spacing: -0.01em;
+    color: var(--ink);
+    margin: 0 0 22px;
+  }
+  .hero h1 em {
+    font-style: italic;
+    color: var(--accent);
+    font-weight: 400;
+  }
+  .hero p {
+    font-size: 15px;
+    line-height: 1.65;
+    color: var(--ink-soft);
+    margin: 0 0 28px;
+    max-width: 460px;
+  }
+  .hero-actions { display: flex; gap: 12px; flex-wrap: wrap;}
+  .btn {
+    padding: 12px 22px;
+    font-size: 13px;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+    border: 1px solid var(--ink);
+    background: transparent;
+    color: var(--ink);
+    cursor: pointer;
+    font-family: inherit;
+    text-decoration: none;
+    transition: all 0.15s ease;
+    display: inline-block;
+  }
+  .btn:hover { background: var(--ink); color: var(--bg); }
+  .btn-primary {
+    background: var(--ink);
+    color: var(--bg);
+  }
+  .btn-primary:hover { background: var(--accent); border-color: var(--accent); }
+
+  /* ─── Section frame ─── */
+  .section {
+    padding: 72px 32px;
+    border-top: 1px solid var(--rule);
+  }
+  .section.alt-bg { background: var(--bg-alt); }
+  .section-header {
+    display: flex;
+    align-items: flex-end;
+    justify-content: space-between;
+    margin-bottom: 36px;
+    flex-wrap: wrap;
+    gap: 16px;
+  }
+  .section-eyebrow {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 10.5px;
+    text-transform: uppercase;
+    letter-spacing: 0.15em;
+    color: var(--accent);
+    margin-bottom: 10px;
+  }
+  .section-title {
+    font-family: 'Cormorant Garamond', Georgia, serif;
+    font-size: 32px;
+    font-weight: 400;
+    line-height: 1.2;
+    letter-spacing: -0.005em;
+    color: var(--ink);
+    margin: 0;
+    max-width: 640px;
+  }
+  .section-title em { font-style: italic; color: var(--accent); }
+  .section-aside {
+    font-size: 13px;
+    color: var(--muted);
+    max-width: 280px;
+    line-height: 1.6;
+    text-align: right;
+    font-style: italic;
+    font-family: 'Cormorant Garamond', serif;
+  }
+
+  /* ─── Pick up where left off ─── */
+  .resume-card {
+    display: grid;
+    grid-template-columns: 320px 1fr auto;
+    gap: 32px;
+    align-items: center;
+    background: var(--paper);
+    padding: 28px;
+    border: 1px solid var(--rule);
+  }
+  .resume-image {
+    aspect-ratio: 4/5;
+    background: linear-gradient(180deg, #d4cfc4 0%, #b8b1a3 50%, #9a9285 100%);
+    position: relative;
+  }
+  .resume-image::after {
+    content: '';
+    position: absolute;
+    top: 16%;
+    left: 50%;
+    transform: translateX(-50%);
+    width: 22%;
+    height: 28%;
+    background: rgba(45, 40, 35, 0.3);
+    border-radius: 3px;
+  }
+  .resume-text h3 {
+    font-family: 'Cormorant Garamond', serif;
+    font-size: 26px;
+    font-weight: 400;
+    margin: 0 0 8px;
+    color: var(--ink);
+  }
+  .resume-meta {
+    display: flex;
+    gap: 12px;
+    margin-bottom: 14px;
+    align-items: center;
+    flex-wrap: wrap;
+  }
+  .pill {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 10.5px;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    padding: 4px 10px;
+    border-radius: 3px;
+    white-space: nowrap;
+  }
+  .pill-warn { background: var(--warning-bg); color: var(--warning-ink); }
+  .pill-good { background: var(--success-bg); color: var(--success-ink); }
+  .pill-neutral { background: var(--rule-soft); color: var(--ink-soft); }
+  .pill-accent { background: var(--accent-soft); color: var(--accent); }
+  .resume-desc {
+    font-size: 14px;
+    color: var(--ink-soft);
+    line-height: 1.65;
+    margin: 0 0 18px;
+    max-width: 520px;
+  }
+  .resume-desc em {
+    font-style: italic;
+    color: var(--accent);
+    font-family: 'Cormorant Garamond', serif;
+    font-size: 16px;
+  }
+  .resume-price {
+    font-family: 'Cormorant Garamond', serif;
+    font-size: 26px;
+    color: var(--ink);
+    margin-right: 12px;
+  }
+  .resume-actions {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    min-width: 160px;
+  }
+
+  /* ─── Built around your wardrobe ─── */
+  .wardrobe-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 20px;
+  }
+  .wardrobe-card {
+    background: var(--paper);
+    border: 1px solid var(--rule-soft);
+  }
+  .wardrobe-image {
+    aspect-ratio: 4/5;
+    position: relative;
+  }
+  .wardrobe-because {
+    position: absolute;
+    bottom: 14px;
+    left: 14px;
+    right: 14px;
+    background: rgba(28, 26, 22, 0.92);
+    color: var(--bg);
+    padding: 8px 12px;
+    font-size: 11.5px;
+    line-height: 1.5;
+    border-radius: 2px;
+  }
+  .wardrobe-because em {
+    color: var(--gold);
+    font-style: normal;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 10px;
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    display: block;
+    margin-bottom: 2px;
+  }
+  .wardrobe-info {
+    padding: 16px 18px;
+  }
+  .wardrobe-info .name {
+    font-family: 'Cormorant Garamond', serif;
+    font-size: 18px;
+    color: var(--ink);
+    margin-bottom: 4px;
+  }
+  .wardrobe-info .note {
+    font-size: 12px;
+    color: var(--muted);
+    margin-bottom: 10px;
+    line-height: 1.5;
+  }
+  .wardrobe-info .price-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    font-size: 13px;
+    color: var(--ink);
+  }
+
+  /* ─── Conversation block (inline in page) ─── */
+  .convo-block {
+    background: var(--ink);
+    color: var(--bg);
+    padding: 56px 48px;
+    display: grid;
+    grid-template-columns: 1fr 380px;
+    gap: 48px;
+    border-top: 1px solid var(--rule);
+  }
+  .convo-block .left h2 {
+    font-family: 'Cormorant Garamond', serif;
+    font-size: 30px;
+    font-weight: 400;
+    line-height: 1.25;
+    margin: 0 0 14px;
+    color: var(--bg);
+  }
+  .convo-block .left h2 em { font-style: italic; color: var(--gold); }
+  .convo-block .left p {
+    font-size: 14.5px;
+    line-height: 1.65;
+    color: rgba(245, 241, 234, 0.7);
+    margin: 0 0 20px;
+    max-width: 460px;
+  }
+  .convo-block .left .hint {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 11px;
+    color: var(--gold);
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+  }
+
+  .chat {
+    background: rgba(255, 255, 255, 0.04);
+    border: 1px solid rgba(184, 149, 106, 0.25);
+    border-radius: 6px;
+    padding: 16px;
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    min-height: 360px;
+  }
+  .msg {
+    max-width: 85%;
+    padding: 10px 14px;
+    font-size: 13px;
+    line-height: 1.55;
+    border-radius: 4px;
+  }
+  .msg.agent {
+    background: rgba(245, 241, 234, 0.07);
+    color: rgba(245, 241, 234, 0.95);
+    align-self: flex-start;
+    border-left: 2px solid var(--gold);
+  }
+  .msg.shopper {
+    background: var(--gold);
+    color: var(--ink);
+    align-self: flex-end;
+  }
+  .msg .who {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 10px;
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    opacity: 0.65;
+    display: block;
+    margin-bottom: 3px;
+  }
+  .chat-input {
+    margin-top: auto;
+    background: rgba(245, 241, 234, 0.05);
+    border: 1px solid rgba(245, 241, 234, 0.15);
+    border-radius: 4px;
+    padding: 10px 14px;
+    color: rgba(245, 241, 234, 0.4);
+    font-size: 13px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+  }
+  .chat-input span:last-child {
+    color: var(--gold);
+    font-size: 11px;
+    font-family: 'JetBrains Mono', monospace;
+  }
+
+  /* ─── Editorial story (per-shopper) ─── */
+  .editorial {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 0;
+    background: var(--paper);
+    border: 1px solid var(--rule);
+  }
+  .editorial-img {
+    aspect-ratio: 5/6;
+    background: linear-gradient(160deg, #2d3142 0%, #1a1d2a 100%);
+    position: relative;
+  }
+  .editorial-img::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: radial-gradient(ellipse at 60% 40%, rgba(184, 149, 106, 0.2), transparent 70%);
+  }
+  .editorial-body {
+    padding: 56px 44px;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+  }
+  .editorial-body .kicker {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 10.5px;
+    text-transform: uppercase;
+    letter-spacing: 0.15em;
+    color: var(--accent);
+    margin-bottom: 14px;
+  }
+  .editorial-body h3 {
+    font-family: 'Cormorant Garamond', serif;
+    font-size: 30px;
+    font-weight: 400;
+    line-height: 1.2;
+    margin: 0 0 16px;
+    color: var(--ink);
+  }
+  .editorial-body p {
+    font-size: 14.5px;
+    line-height: 1.7;
+    color: var(--ink-soft);
+    margin: 0 0 18px;
+  }
+  .editorial-body .read {
+    font-size: 12px;
+    color: var(--accent);
+    font-family: 'JetBrains Mono', monospace;
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    text-decoration: none;
+  }
+
+  /* ─── Alt-render panel ─── */
+  .alt-panel {
+    margin: 56px 0 0;
+    background: var(--ink);
+    color: var(--bg);
+    padding: 36px 40px;
+    border-radius: 4px;
+  }
+  .alt-panel-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+    flex-wrap: wrap;
+    margin-bottom: 22px;
+    gap: 16px;
+  }
+  .alt-panel-label {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 10.5px;
+    text-transform: uppercase;
+    letter-spacing: 0.15em;
+    color: var(--gold);
+    margin-bottom: 8px;
+  }
+  .alt-panel-title {
+    font-family: 'Cormorant Garamond', serif;
+    font-size: 24px;
+    font-weight: 400;
+    margin: 0;
+    line-height: 1.3;
+  }
+  .alt-panel-title em { color: var(--gold); font-style: italic; }
+  .alt-panel-note {
+    font-size: 12.5px;
+    color: rgba(245, 241, 234, 0.55);
+    max-width: 240px;
+    line-height: 1.55;
+    font-style: italic;
+    font-family: 'Cormorant Garamond', serif;
+  }
+  .alt-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 14px;
+  }
+  .alt-card {
+    background: rgba(245, 241, 234, 0.05);
+    border: 1px solid rgba(184, 149, 106, 0.2);
+    padding: 18px;
+    border-radius: 3px;
+    font-size: 12.5px;
+    line-height: 1.6;
+  }
+  .alt-card .who {
+    color: var(--gold);
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    font-family: 'JetBrains Mono', monospace;
+    margin-bottom: 10px;
+    padding-bottom: 8px;
+    border-bottom: 1px solid rgba(184, 149, 106, 0.2);
+  }
+  .alt-card .renders {
+    color: rgba(245, 241, 234, 0.65);
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    margin-bottom: 6px;
+    font-family: 'JetBrains Mono', monospace;
+  }
+  .alt-card .what {
+    color: rgba(245, 241, 234, 0.9);
+    margin-bottom: 8px;
+  }
+  .alt-card .why {
+    color: rgba(245, 241, 234, 0.5);
+    font-size: 11.5px;
+    line-height: 1.55;
+    font-style: italic;
+    font-family: 'Cormorant Garamond', serif;
+  }
+
+  /* ─── Story / journal section ─── */
+  .journal-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 24px;
+  }
+  .journal-item {
+    background: var(--paper);
+    border: 1px solid var(--rule-soft);
+  }
+  .journal-img {
+    aspect-ratio: 5/4;
+    position: relative;
+  }
+  .journal-tag {
+    position: absolute;
+    top: 14px;
+    left: 14px;
+    background: rgba(245, 241, 234, 0.92);
+    color: var(--accent);
+    padding: 4px 10px;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 10px;
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    border-radius: 2px;
+  }
+  .journal-body {
+    padding: 22px 24px 26px;
+  }
+  .journal-body .meta {
+    font-size: 11px;
+    color: var(--muted);
+    margin-bottom: 8px;
+    font-family: 'JetBrains Mono', monospace;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+  }
+  .journal-body h4 {
+    font-family: 'Cormorant Garamond', serif;
+    font-size: 19px;
+    font-weight: 400;
+    line-height: 1.3;
+    margin: 0 0 8px;
+    color: var(--ink);
+  }
+  .journal-body p {
+    font-size: 13px;
+    color: var(--ink-soft);
+    line-height: 1.6;
+    margin: 0;
+  }
+
+  /* ─── Service / atelier section ─── */
+  .atelier {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 28px;
+  }
+  .atelier-card {
+    background: var(--paper);
+    padding: 36px 32px;
+    border: 1px solid var(--rule-soft);
+    display: flex;
+    flex-direction: column;
+  }
+  .atelier-card .num {
+    font-family: 'Cormorant Garamond', serif;
+    font-size: 36px;
+    font-weight: 300;
+    color: var(--gold);
+    line-height: 1;
+    margin-bottom: 14px;
+  }
+  .atelier-card h4 {
+    font-family: 'Cormorant Garamond', serif;
+    font-size: 22px;
+    font-weight: 400;
+    margin: 0 0 10px;
+    color: var(--ink);
+  }
+  .atelier-card p {
+    font-size: 13.5px;
+    line-height: 1.65;
+    color: var(--ink-soft);
+    margin: 0 0 16px;
+    flex: 1;
+  }
+  .atelier-card .why-shown {
+    font-size: 11px;
+    color: var(--accent);
+    font-family: 'JetBrains Mono', monospace;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    padding-top: 12px;
+    border-top: 1px solid var(--rule-soft);
+  }
+
+  /* ─── Footer ─── */
+  .footer {
+    background: var(--ink);
+    color: var(--bg);
+    padding: 56px 32px 32px;
+  }
+  .footer-grid {
+    display: grid;
+    grid-template-columns: 2fr 1fr 1fr 1fr;
+    gap: 40px;
+    margin-bottom: 40px;
+    max-width: 1280px;
+    margin-left: auto;
+    margin-right: auto;
+  }
+  .footer-brand h5 {
+    font-family: 'Cormorant Garamond', serif;
+    font-size: 22px;
+    font-weight: 500;
+    letter-spacing: 0.05em;
+    text-transform: uppercase;
+    margin: 0 0 12px;
+  }
+  .footer-brand p {
+    font-size: 13px;
+    color: rgba(245, 241, 234, 0.55);
+    line-height: 1.7;
+    max-width: 320px;
+    margin: 0;
+  }
+  .footer-col h6 {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 10.5px;
+    text-transform: uppercase;
+    letter-spacing: 0.12em;
+    color: var(--gold);
+    margin: 0 0 14px;
+    font-weight: 500;
+  }
+  .footer-col ul { list-style: none; padding: 0; margin: 0; }
+  .footer-col li {
+    font-size: 13px;
+    color: rgba(245, 241, 234, 0.7);
+    margin-bottom: 8px;
+  }
+  .footer-col li.tagged::after {
+    content: ' ·';
+    color: var(--gold);
+  }
+  .footer-bottom {
+    max-width: 1280px;
+    margin: 0 auto;
+    padding-top: 24px;
+    border-top: 1px solid rgba(245, 241, 234, 0.1);
+    display: flex;
+    justify-content: space-between;
+    flex-wrap: wrap;
+    gap: 12px;
+    font-size: 11px;
+    color: rgba(245, 241, 234, 0.45);
+    font-family: 'JetBrains Mono', monospace;
+  }
+
+  /* ─── Concept frame note (only at very top of page) ─── */
+  .concept-note {
+    background: var(--paper);
+    border-bottom: 1px solid var(--rule);
+    padding: 14px 32px;
+    font-size: 12px;
+    color: var(--muted);
+    text-align: center;
+    font-family: 'JetBrains Mono', monospace;
+    letter-spacing: 0.04em;
+  }
+  .concept-note strong {
+    color: var(--accent);
+    font-weight: 500;
+  }
+
+  /* ─── Responsive ─── */
+  @media (max-width: 900px) {
+    .hero { grid-template-columns: 1fr; }
+    .hero-image { min-height: 320px; }
+    .hero-content { padding: 40px 28px; }
+    .hero h1 { font-size: 32px; }
+    .nav { padding: 14px 20px; flex-wrap: wrap; gap: 10px; }
+    .nav-links { display: none; }
+    .section { padding: 48px 20px; }
+    .section-title { font-size: 26px; }
+    .resume-card { grid-template-columns: 1fr; gap: 18px; }
+    .wardrobe-grid { grid-template-columns: 1fr; }
+    .convo-block { grid-template-columns: 1fr; padding: 36px 24px; gap: 28px; }
+    .editorial { grid-template-columns: 1fr; }
+    .editorial-body { padding: 32px 24px; }
+    .alt-grid { grid-template-columns: 1fr; }
+    .journal-grid { grid-template-columns: 1fr; }
+    .atelier { grid-template-columns: 1fr; }
+    .footer-grid { grid-template-columns: 1fr; gap: 28px; }
+    .agent-watermark { left: 12px; right: 12px; max-width: none; bottom: 12px; }
+  }
+</style>
+</head>
+<body>
+
+<!-- Always-visible reminder this is agentic, not just a brand site -->
+<div class="agent-watermark">
+  <div class="label">★ Composed for</div>
+  <div class="who">Maya R · returning · London</div>
+  <div class="signal">history · weather · stock · tier</div>
+</div>
+
+<div class="concept-note">
+  Concept · This page is the storefront <strong>Maison Aldwych</strong> generated for one specific shopper, in real time. Every section below is the agent's output — what to lead with, what to hide, what to write, what to recommend, in what voice.
+</div>
+
+<!-- ─────────── Top bar ─────────── -->
+<div class="topbar">
+  <span class="for-you">★ For you</span>
+  Free express shipping on the cold-weather edit, while London stays under 10°C
+</div>
+
+<!-- ─────────── Nav ─────────── -->
+<nav class="nav">
+  <div class="nav-logo">
+    Maison Aldwych
+    <span class="small">Est. London 2003</span>
+  </div>
+  <div class="nav-links">
+    <a href="#" class="tagged">Coats &amp; outerwear</a>
+    <a href="#">Tailoring</a>
+    <a href="#">Knitwear</a>
+    <a href="#" class="tagged">For your wardrobe</a>
+    <a href="#">The atelier</a>
+    <a href="#">Journal</a>
+  </div>
+  <div class="nav-right">
+    <span class="nav-greeting">Welcome back, Maya</span>
+    <a href="#">Bag (0)</a>
+  </div>
+</nav>
+
+<div class="page">
+
+  <!-- ─────────── Hero ─────────── -->
+  <section class="hero">
+    <div class="hero-image">
+      <span class="hero-image-tag">The Aldwych Overcoat · Italian wool · half-canvas</span>
+    </div>
+    <div class="hero-content">
+      <div class="hero-eyebrow">Picking up where you left off</div>
+      <h1>The coat you were holding in your bag <em>is still in your size.</em></h1>
+      <p>Six days ago you were a click away from it. Two left in UK 8 as of yesterday morning. Given the week ahead in London — wet, cold, unforgiving — I've held it back at the top of the page. The seasonal hero we'd normally show first is a few sections down, if you'd like to see it.</p>
+      <div class="hero-actions">
+        <a href="#" class="btn btn-primary">Reserve in your size</a>
+        <a href="#" class="btn">Try on me first</a>
+      </div>
+    </div>
+  </section>
+
+  <!-- ─────────── Resume / Pick up where you left off ─────────── -->
+  <section class="section">
+    <div class="section-header">
+      <div>
+        <div class="section-eyebrow">★ Composed for you</div>
+        <h2 class="section-title">The Aldwych Overcoat</h2>
+      </div>
+      <div class="section-aside">
+        I'm leading with this because you came back for it. If I'm wrong about that, scroll past — the rest of the page is yours.
+      </div>
+    </div>
+
+    <div class="resume-card">
+      <div class="resume-image"></div>
+      <div class="resume-text">
+        <h3>The Aldwych, in charcoal</h3>
+        <div class="resume-meta">
+          <span class="pill pill-warn">2 left in UK 8</span>
+          <span class="pill pill-good">Ships next day to SE15</span>
+          <span class="pill pill-neutral">Italian wool · half-canvas</span>
+        </div>
+        <p class="resume-desc">
+          Cut a touch longer than your <em>2023 wool coat</em> from us — eleven centimetres past the knee. Reads more formal. Buttons closed without bunching across the shoulder; we know your fit from the alterations on file. The half-canvas means it'll move with you for ten winters.
+        </p>
+      </div>
+      <div class="resume-actions">
+        <span class="resume-price">£795</span>
+        <a href="#" class="btn btn-primary">Reserve</a>
+        <a href="#" class="btn">Virtual try-on</a>
+      </div>
+    </div>
+
+    <!-- Alt-render panel: how this section renders for other shoppers -->
+    <div class="alt-panel">
+      <div class="alt-panel-header">
+        <div>
+          <div class="alt-panel-label">★ For another shopper, this section becomes…</div>
+          <h3 class="alt-panel-title">The same brand, the same code, <em>a different page entirely.</em></h3>
+        </div>
+        <div class="alt-panel-note">
+          The "pick up where you left off" section only exists for shoppers with a where-they-left-off. For others, the agent generates something else in its place.
+        </div>
+      </div>
+      <div class="alt-grid">
+        <div class="alt-card">
+          <div class="who">First-time visitor · ChatGPT referral</div>
+          <div class="renders">Renders as</div>
+          <div class="what">An editorial spread on the house style — two images, a story about the Biella mill, no products yet.</div>
+          <div class="why">"They're comparing brands. Conversion's not the win this session — trust is. Don't lead with stock."</div>
+        </div>
+        <div class="alt-card">
+          <div class="who">Akari · Tokyo · loyalty tier 02</div>
+          <div class="renders">Renders as</div>
+          <div class="what">A first-look at the spring capsule, six pieces, filtered to her usual stones and oats. Yen pricing with duties resolved.</div>
+          <div class="why">"Wrong climate for outerwear. Right shopper for SS arrivals. Lead with what just landed, not what's old."</div>
+        </div>
+        <div class="alt-card">
+          <div class="who">Anonymous · gift intent detected</div>
+          <div class="renders">Renders as</div>
+          <div class="what">A "tell me about who it's for" prompt above a gift edit organised by recipient — partner, parent, friend.</div>
+          <div class="why">"Personal recommendations are wrong here. The shopper isn't shopping for themselves. Hide history, lead with help."</div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ─────────── Built around your wardrobe ─────────── -->
+  <section class="section alt-bg">
+    <div class="section-header">
+      <div>
+        <div class="section-eyebrow">★ Built around what's already in your wardrobe</div>
+        <h2 class="section-title">Three pieces that go with what <em>you already own.</em></h2>
+      </div>
+      <div class="section-aside">
+        Pulled from your purchase history. Fit notes from your alterations file. I won't show anything that fights what you've got.
+      </div>
+    </div>
+
+    <div class="wardrobe-grid">
+      <article class="wardrobe-card">
+        <div class="wardrobe-image" style="background: linear-gradient(180deg, #2d3142 0%, #1a1d2a 100%);">
+          <div class="wardrobe-because">
+            <em>Because you own</em>
+            Your navy wool blazer (March 2024). Same colour family, slightly looser shoulder.
+          </div>
+        </div>
+        <div class="wardrobe-info">
+          <div class="name">The Highbury merino roll-neck</div>
+          <div class="note">Fine-gauge merino, navy. Wears under the blazer or alone.</div>
+          <div class="price-row"><span>£145</span><a href="#" style="color: var(--accent); text-decoration: none; font-size: 12px; font-family: 'JetBrains Mono', monospace; text-transform: uppercase; letter-spacing: 0.08em;">View →</a></div>
+        </div>
+      </article>
+
+      <article class="wardrobe-card">
+        <div class="wardrobe-image" style="background: linear-gradient(180deg, #6b5847 0%, #4a3d2f 100%);">
+          <div class="wardrobe-because">
+            <em>Because you own</em>
+            Your stone wool trousers (Nov 2022). Same drop, finer twill, will pair without fighting.
+          </div>
+        </div>
+        <div class="wardrobe-info">
+          <div class="name">The Holborn wool trouser</div>
+          <div class="note">Italian wool, mid-rise. Cut to match the Aldwych above the knee.</div>
+          <div class="price-row"><span>£275</span><a href="#" style="color: var(--accent); text-decoration: none; font-size: 12px; font-family: 'JetBrains Mono', monospace; text-transform: uppercase; letter-spacing: 0.08em;">View →</a></div>
+        </div>
+      </article>
+
+      <article class="wardrobe-card">
+        <div class="wardrobe-image" style="background: linear-gradient(180deg, #c9bfa8 0%, #a8a08a 100%);">
+          <div class="wardrobe-because">
+            <em>Because you bought</em>
+            Three knits in oat from us already. This is the piece that finishes that palette.
+          </div>
+        </div>
+        <div class="wardrobe-info">
+          <div class="name">The Linnaean oversized cardigan</div>
+          <div class="note">Lambswool, long. The one piece your wardrobe is missing.</div>
+          <div class="price-row"><span>£325</span><a href="#" style="color: var(--accent); text-decoration: none; font-size: 12px; font-family: 'JetBrains Mono', monospace; text-transform: uppercase; letter-spacing: 0.08em;">View →</a></div>
+        </div>
+      </article>
+    </div>
+  </section>
+
+  <!-- ─────────── Conversation block (chat as a component, not the page) ─────────── -->
+  <section class="convo-block">
+    <div class="left">
+      <div class="hint">★ Here when you want to ask</div>
+      <h2>The page above is what I'd start you with. <em>Tell me if I'm wrong</em> and it rebuilds.</h2>
+      <p>Speak, type, or upload a photo of something you already own and want to dress around. The page reorders, re-recommends, and re-writes itself. There is no "submit" button and no separate checkout. This is the storefront.</p>
+      <p style="font-size: 12.5px; color: rgba(245, 241, 234, 0.45); font-style: italic; font-family: 'Cormorant Garamond', serif; max-width: 380px;">Most brands put a chat bubble in the bottom corner. Here, the conversation is one of several ways to talk to the same agent that already laid out everything you've scrolled through.</p>
+    </div>
+    <div class="chat">
+      <div class="msg agent"><span class="who">Aldwych · agent</span>Welcome back, Maya. I've held the coat for you. Anything specific on your mind?</div>
+      <div class="msg shopper"><span class="who">You</span>I've got a wedding in March. Outdoor. Cotswolds.</div>
+      <div class="msg agent"><span class="who">Aldwych · agent</span>Got it. Let me pull three dresses that work with the Aldwych on top, sized to your file, in the range you tend to spend. Reordering the page now…</div>
+      <div class="chat-input">
+        <span>Reply, or upload a photo…</span>
+        <span>● voice</span>
+      </div>
+    </div>
+  </section>
+
+  <!-- ─────────── Editorial story (per-shopper) ─────────── -->
+  <section class="section">
+    <div class="section-header">
+      <div>
+        <div class="section-eyebrow">★ A story I picked because of how you shop</div>
+        <h2 class="section-title">Why we use the same Biella mill we did <em>twenty-two years ago.</em></h2>
+      </div>
+      <div class="section-aside">
+        You spend time on the make. I'm leading with origin, not styling. Different shoppers see a different journal piece here.
+      </div>
+    </div>
+
+    <div class="editorial">
+      <div class="editorial-img"></div>
+      <div class="editorial-body">
+        <div class="kicker">Journal · The atelier · 6 min read</div>
+        <h3>The mill that taught us to wait.</h3>
+        <p>When we started, we had three coats and nowhere to make them. The Biella mill said yes on a Wednesday. Twenty-two years later they still finish our wool, on the same loom, with the same hand. We've turned down faster, cheaper, more flexible. We will keep turning them down.</p>
+        <p>This is the piece we wrote in March about why the wait is the point. You usually read these — the agent picked it for you because of that.</p>
+        <a href="#" class="read">Read the full story →</a>
+      </div>
+    </div>
+
+    <!-- Alt-render: same section, different shopper -->
+    <div class="alt-panel">
+      <div class="alt-panel-header">
+        <div>
+          <div class="alt-panel-label">★ The journal slot, for other shoppers</div>
+          <h3 class="alt-panel-title">A different reader, <em>a different story.</em></h3>
+        </div>
+        <div class="alt-panel-note">
+          The brand publishes one journal a fortnight. Which piece any given shopper sees here is the agent's call, against what the shopper has historically read.
+        </div>
+      </div>
+      <div class="alt-grid">
+        <div class="alt-card">
+          <div class="who">A shopper who reads on care &amp; longevity</div>
+          <div class="renders">Sees</div>
+          <div class="what">"Why our coats are made to be re-lined, not replaced."</div>
+          <div class="why">"They open every care article we publish. This is the thread they've been pulling on."</div>
+        </div>
+        <div class="alt-card">
+          <div class="who">A shopper who reads on style &amp; outfits</div>
+          <div class="renders">Sees</div>
+          <div class="what">"Five ways to wear a long coat in a London spring."</div>
+          <div class="why">"They engage with styling, not provenance. Lead with the visual, not the story behind it."</div>
+        </div>
+        <div class="alt-card">
+          <div class="who">A shopper who never opens journal pieces</div>
+          <div class="renders">Sees</div>
+          <div class="what">No journal slot at all. Replaced by a curated capsule of three pieces.</div>
+          <div class="why">"They don't read. Don't waste a slot on an article. Show product instead."</div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ─────────── Atelier services ─────────── -->
+  <section class="section alt-bg">
+    <div class="section-header">
+      <div>
+        <div class="section-eyebrow">★ Services I'm putting in front of you</div>
+        <h2 class="section-title">Two of our six services. <em>The ones that fit you.</em></h2>
+      </div>
+      <div class="section-aside">
+        We run six. The other four don't apply to where you are right now. The page won't pretend they do.
+      </div>
+    </div>
+
+    <div class="atelier">
+      <article class="atelier-card">
+        <div class="num">01</div>
+        <h4>Re-lining and repair, for life</h4>
+        <p>Every coat we make can be re-lined, re-buttoned, re-cuffed, and re-finished. Free for the first ten years, at-cost after. You bought one of ours in 2023. It's three winters in. If the lining's gone soft, send it back.</p>
+        <span class="why-shown">Shown because you own a coat from us</span>
+      </article>
+
+      <article class="atelier-card">
+        <div class="num">02</div>
+        <h4>Fit-on-file</h4>
+        <p>You came in for alterations on the navy blazer last March. Those measurements are on your file. Anything you order from us — including the Aldwych above — comes pre-altered. No second appointment, no second tailor.</p>
+        <span class="why-shown">Shown because you have alterations on file</span>
+      </article>
+    </div>
+
+    <!-- Alt-render: services slot for other shoppers -->
+    <div class="alt-panel">
+      <div class="alt-panel-header">
+        <div>
+          <div class="alt-panel-label">★ Same slot, different services</div>
+          <h3 class="alt-panel-title">The agent leads with what's <em>actually relevant</em> per shopper.</h3>
+        </div>
+        <div class="alt-panel-note">
+          The brand has six services. The static site lists all six. The agentic storefront leads with the two that apply.
+        </div>
+      </div>
+      <div class="alt-grid">
+        <div class="alt-card">
+          <div class="who">First-time visitor</div>
+          <div class="renders">Sees</div>
+          <div class="what">"How we make a coat" + "Visit the atelier" — services that introduce the brand.</div>
+          <div class="why">"They have no purchase yet. The alteration and re-line services are noise — they don't apply."</div>
+        </div>
+        <div class="alt-card">
+          <div class="who">Akari · Tokyo</div>
+          <div class="renders">Sees</div>
+          <div class="what">"Worldwide sizing exchange" + "JP duty &amp; tax pre-paid" — services that solve cross-border friction.</div>
+          <div class="why">"International shopper. Surface the services that remove the international worry."</div>
+        </div>
+        <div class="alt-card">
+          <div class="who">Gift shopper</div>
+          <div class="renders">Sees</div>
+          <div class="what">"Hand-wrapping" + "Concierge for orders over £400" — services tuned to gift anxiety.</div>
+          <div class="why">"They're nervous about getting it right for someone else. Lead with reassurance."</div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ─────────── Journal teasers ─────────── -->
+  <section class="section">
+    <div class="section-header">
+      <div>
+        <div class="section-eyebrow">★ Three more from the journal</div>
+        <h2 class="section-title">Picked because of what you've read before, <em>not what's most read.</em></h2>
+      </div>
+      <div class="section-aside">
+        The brand publishes a hundred pieces a year. Which three sit here is the agent's call, per shopper.
+      </div>
+    </div>
+
+    <div class="journal-grid">
+      <article class="journal-item">
+        <div class="journal-img" style="background: linear-gradient(160deg, #4a3d2f 0%, #2d2520 100%);">
+          <span class="journal-tag">Care</span>
+        </div>
+        <div class="journal-body">
+          <div class="meta">8 min · for you</div>
+          <h4>How to make a wool coat last twelve winters.</h4>
+          <p>Brushing, hanging, when not to dry-clean, and the one repair we'd always make ourselves.</p>
+        </div>
+      </article>
+
+      <article class="journal-item">
+        <div class="journal-img" style="background: linear-gradient(160deg, #6b5847 0%, #4a3d2f 100%);">
+          <span class="journal-tag">Atelier</span>
+        </div>
+        <div class="journal-body">
+          <div class="meta">5 min · for you</div>
+          <h4>The half-canvas, explained without the menswear lecture.</h4>
+          <p>Why every coat we make is built around a layer you'll never see.</p>
+        </div>
+      </article>
+
+      <article class="journal-item">
+        <div class="journal-img" style="background: linear-gradient(160deg, #2d3142 0%, #1a1d2a 100%);">
+          <span class="journal-tag">Style</span>
+        </div>
+        <div class="journal-body">
+          <div class="meta">4 min · for you</div>
+          <h4>Long coats over occasion dresses, three ways.</h4>
+          <p>How to wear an overcoat to a wedding without looking like you forgot to take it off.</p>
+        </div>
+      </article>
+    </div>
+  </section>
+
+  <!-- ─────────── Closing essay band ─────────── -->
+  <section class="section alt-bg">
+    <div style="max-width: 720px; margin: 0 auto; text-align: center;">
+      <div class="section-eyebrow" style="text-align: center; margin-bottom: 18px;">★ The signature</div>
+      <h2 style="font-family: 'Cormorant Garamond', serif; font-size: 36px; font-weight: 400; line-height: 1.25; margin: 0 0 22px; color: var(--ink);">
+        Everything you scrolled through is one of <em style="color: var(--accent); font-style: italic;">infinite possible storefronts.</em>
+      </h2>
+      <p style="font-size: 15px; line-height: 1.75; color: var(--ink-soft); margin: 0 0 12px;">
+        Same brand. Same catalogue. Same merchandising rules. Same voice. But the page Maya saw above is one specific composition the agent made for her, in roughly two seconds, against everything it knew about her — six previous orders, one set of alterations, a coat held back in her bag, the weather over London this week, the cadence of her past visits.
+      </p>
+      <p style="font-size: 15px; line-height: 1.75; color: var(--ink-soft); margin: 0;">
+        Akari's page didn't have these sections. The first-time visitor didn't see this hero. The gift shopper saw a different home altogether. Same domain. Same second.
+      </p>
+    </div>
+  </section>
+
+</div>
+
+<!-- ─────────── Footer ─────────── -->
+<footer class="footer">
+  <div class="footer-grid">
+    <div class="footer-brand">
+      <h5>Maison Aldwych</h5>
+      <p>A small house, six wools, made well. London, 2003. We are slow on purpose.</p>
+    </div>
+    <div class="footer-col">
+      <h6>The agent picked</h6>
+      <ul>
+        <li class="tagged">Coats &amp; outerwear</li>
+        <li class="tagged">Tailoring on file</li>
+        <li>Knitwear</li>
+        <li>Care &amp; repair</li>
+      </ul>
+    </div>
+    <div class="footer-col">
+      <h6>For you</h6>
+      <ul>
+        <li>Your wardrobe with us</li>
+        <li>Re-line your 2023 coat</li>
+        <li>Book the atelier</li>
+        <li>Talk to a person</li>
+      </ul>
+    </div>
+    <div class="footer-col">
+      <h6>The house</h6>
+      <ul>
+        <li>The Biella mill</li>
+        <li>Journal</li>
+        <li>Stockists</li>
+        <li>Press</li>
+      </ul>
+    </div>
+  </div>
+  <div class="footer-bottom">
+    <span>© Maison Aldwych · A concept storefront</span>
+    <span>page generated 2.4s ago · 1 of ∞</span>
+  </div>
+</footer>
+
+</body>
+</html>
