@@ -1,0 +1,238 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="Why two teams running the same model on the same task can spend ten times more than each other on inference. A practical guide to the harness decisions that determine whether your agent bills you $400 or $40 per benchmark run.">
+    <title>$400 or $40: The Harness Decisions That Decide Your Agent's Bill</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+            font-size: 17px;
+            line-height: 1.7;
+            color: #1a1a1a;
+            background: #fafaf7;
+            max-width: 720px;
+            margin: 0 auto;
+            padding: 60px 24px 80px;
+        }
+
+        .back-link {
+            display: inline-block;
+            color: #666;
+            text-decoration: none;
+            font-size: 14px;
+            margin-bottom: 48px;
+            transition: color 0.2s;
+        }
+
+        .back-link:hover {
+            color: #1a1a1a;
+        }
+
+        h1 {
+            font-size: 36px;
+            line-height: 1.25;
+            font-weight: 700;
+            margin-bottom: 28px;
+            letter-spacing: -0.02em;
+            color: #1a1a1a;
+        }
+
+        h2 {
+            font-size: 24px;
+            line-height: 1.35;
+            font-weight: 700;
+            margin: 48px 0 20px;
+            letter-spacing: -0.01em;
+            color: #1a1a1a;
+        }
+
+        p {
+            margin-bottom: 22px;
+            color: #2a2a2a;
+        }
+
+        .intro-para {
+            font-size: 18px;
+            color: #2a2a2a;
+        }
+
+        .tags {
+            font-size: 13px;
+            color: #888;
+            margin: 24px 0;
+            font-style: italic;
+        }
+
+        hr {
+            border: none;
+            border-top: 1px solid #e0e0dc;
+            margin: 32px 0;
+        }
+
+        blockquote {
+            border-left: 3px solid #1a1a1a;
+            padding: 4px 0 4px 24px;
+            margin: 32px 0;
+            font-style: italic;
+            color: #1a1a1a;
+            font-size: 19px;
+            line-height: 1.6;
+        }
+
+        blockquote p {
+            margin-bottom: 0;
+            color: #1a1a1a;
+        }
+
+        .disclaimer {
+            margin-top: 64px;
+            padding-top: 32px;
+            border-top: 1px solid #e0e0dc;
+            font-size: 14px;
+            color: #888;
+            font-style: italic;
+        }
+
+        @media (max-width: 600px) {
+            body {
+                font-size: 16px;
+                padding: 40px 20px 60px;
+            }
+            h1 {
+                font-size: 28px;
+            }
+            h2 {
+                font-size: 21px;
+            }
+            blockquote {
+                font-size: 17px;
+            }
+        }
+    </style>
+</head>
+<body>
+
+    <a href="https://www.sannipatel.me/blog.html" class="back-link">← Go back to blogs</a>
+
+    <h1>$400 or $40: The Harness Decisions That Decide Your Agent's Bill</h1>
+
+    <p class="intro-para">Most agent conversations right now are stuck on the wrong axis. The argument is which model to pick  which frontier release scored a point higher on which benchmark, which provider is cheaper per million tokens on the rate card. The harder question, and the one that decides whether your agent is a sustainable product or a credit card hemorrhage, is what happens in the loop around the model. The same model can cost you ten times more or ten times less for the same work, depending entirely on decisions made by the code that surrounds it.</p>
+
+    <p class="tags">agent harness inference cost prefix caching context engineering production ai</p>
+
+    <hr>
+
+    <p>A research paper out of Waterloo this year ran the same deep-research benchmark across several configurations. One team's setup, using GPT-5 on a fixed corpus of 100,000 documents, cost $400 to evaluate end to end. A different team, using the same GPT-5 model on the same benchmark, paid $95 for the same work. Push the comparison to a smaller model and the gap widens: one DeepSeek configuration finished the full 830-query benchmark for $29. Same task. Same data. No fine-tuning. No proprietary tricks. Just a different harness  the scaffolding code that orchestrates the model, manages the conversation, and routes the tool calls.</p>
+
+    <p>This is not a margin difference. It is the difference between a feature that pays for itself and a feature you have to kill before procurement notices. And the gap is not produced by a single clever optimisation. It is produced by a handful of architectural decisions that compound across the hundred-plus model calls a non-trivial agent makes per task. Most teams making those decisions are not making them deliberately. They are inheriting defaults from whichever framework they grabbed first, and discovering the cost only when the invoice arrives.</p>
+
+    <p>The frustrating part is that almost none of the cost levers require deep ML knowledge. They are engineering decisions, the same shape as the decisions a backend engineer makes about caching, serialization, and retry logic. The difference is that the cost signal is delayed and obscured  the agent works, the answers look reasonable, the bill arrives a month later. By the time you go looking for the leak, you have already paid for it.</p>
+
+    <blockquote>
+        <p>A 10x cost difference between two implementations of the same agent is not an edge case. It is the default outcome when one team is thinking about cost mechanics and the other is not.</p>
+    </blockquote>
+
+    <h2>What a Harness Actually Is</h2>
+
+    <p>The model is a function. Text goes in, text comes out. It cannot click anything, it cannot read a file, it cannot look at a calendar, it cannot remember what it said three turns ago. Everything an "agent" appears to do is wrapped around that function by ordinary code. That wrapping code is the harness.</p>
+
+    <p>A harness, at minimum, holds the conversation history, sends it to the model on each turn along with a description of the available tools, parses what the model decides to do, runs the tool, appends the result back into the conversation, and loops until the model says it is done. A travel-planning agent that looks for flights, checks hotels, holds a draft itinerary, and confirms with the user is doing that through a harness running this loop fifteen or twenty times. A research agent that synthesises a report from forty sources might run the loop a hundred and fifty times. Every iteration sends the accumulated history back to the model. Every iteration costs tokens.</p>
+
+    <p>The model is roughly the same regardless of who calls it. The harness is where teams differ wildly. One team's harness is two hundred lines of Python written in an afternoon. Another's is twenty thousand lines of carefully tuned production code with sandboxing, observability, and a half-dozen middleware layers. The two will not behave the same, and they will not cost the same.</p>
+
+    <p>The cost gap between them does not come from the model. It comes from how the harness treats four things: the prefix it sends to the model on every turn, the tools it makes available, the way it manages context across long sessions, and what it does when the agent gets lost. Most of the rest of this piece is about those four things, framed not as performance improvements but as cost protection.</p>
+
+    <h2>The Prefix Is the Whole Bill</h2>
+
+    <p>The single most expensive decision in agent design is whether the model can reuse the work it has already done. Every major provider  OpenAI, Anthropic, Google, DeepSeek  offers prefix caching, which means that if your next API call begins with the same exact bytes as a previous call, the provider can skip recomputing those tokens and charge you somewhere between ten and fifty percent of the normal input price for them. On long-running agent loops, this is not an optimisation. It is the difference between a viable product and an unprofitable one.</p>
+
+    <p>The mechanics are simple to state. When you send a prompt to a model, the provider processes every token in order, building up an internal mathematical state that captures "what I have read so far." If the next request starts with the same tokens, the same state is reconstructed. Providers noticed this and started caching the state itself, so identical prefixes do not need to be reprocessed. Anthropic's discount on a cache hit is roughly 10x. DeepSeek's is similar. The discount is real, the bookkeeping is automatic on most providers, and the only thing required to get it is that your prefix has to actually match.</p>
+
+    <p>The catch is that the match has to be byte-for-byte. One character of drift at the start of the prompt invalidates the cache for everything after it. And the prefix is not just "the conversation history I am tracking in my code." It includes the system prompt, the tool definitions, any wrapping metadata, and the order of every message  all of which sit at the front of the request the provider actually sees. A harness that appends cleanly to its messages list is not enough if the system prompt or the tool list mutates between turns.</p>
+
+    <p>The most common ways harnesses leak money on this are roughly the same set of mistakes, repeated everywhere. A timestamp embedded in the system prompt that updates every call, so the provider sees the system prompt as different on each turn and recomputes the entire history from scratch. A "current session ID" or trace ID injected near the top of the prompt for debugging, with the same effect. Tool definitions added or removed mid-session based on which phase the agent is in, mutating the prefix and breaking the cache for every conversational turn that follows. Conversation history rewritten or summarised in place rather than appended to. Different inference servers behind a load balancer with no session affinity, so the second turn lands on a different server than the first and the cache miss is total.</p>
+
+    <p>A harness that gets all of these right will see eighty to ninety percent of its input tokens served from cache on a typical agent run. A harness that gets even one of them wrong will see something closer to zero. At eighty percent cache hit rate on a frontier model, you are paying roughly a fifth of the rate card price for input. At zero, you are paying full price for input on every turn, on a prompt that doubles in length with each iteration. The two trajectories diverge fast.</p>
+
+    <p>The fix is unglamorous. Move time and session metadata out of the system prompt and into the user message at the bottom of the conversation. Pin the system prompt and the tool definitions at session start and never touch them. Append to conversation history; never edit or reorder. Pin sessions to the same backend in distributed deployments. None of these are clever. All of them are the kind of thing a senior engineer would do as a matter of routine, if they knew the rule applied. Most agent frameworks do not surface the rule, and most teams do not read the pricing page closely enough to derive it.</p>
+
+    <blockquote>
+        <p>The model is roughly a commodity. The cache hit rate is not. This is where it decides if running your agent will take $400 or $40.</p>
+    </blockquote>
+
+    <h2>The Tool List Is a Budget Item</h2>
+
+    <p>The second place teams overspend without realising it is the tool list. The intuition is that more tools mean more capability  give the agent every affordance it could possibly need, and let it figure out which one to use. Empirically, this is wrong twice over: once on quality, and once on cost.</p>
+
+    <p>On quality, the data is now consistent across multiple teams who have measured it. An agent with a dozen tools performs roughly as well as one with five. An agent with thirty tools starts to noticeably degrade. An agent with a hundred tools functionally fails at tasks the same model would have solved with five. The failure mode is attention fragmentation. The model spends most of its reasoning budget choosing among options instead of actually doing the work. Vercel's team published one of the cleanest examples: they collapsed fifteen specialised tools into a single general-purpose tool and watched task completion time fall from two hundred seventy-four seconds to seventy-seven, while success rate climbed from eighty percent to a hundred. Same model. Fewer tools. Better outcomes. Cheaper run.</p>
+
+    <p>On cost, the picture is more direct. Tool definitions live in the prefix of every request. A bloated tool list is paid for on every single model call, whether the agent uses those tools or not. A research agent with forty tools is sending the description of all forty back to the model on every turn, even when it is only ever going to use three of them. The cache discount helps, but only if the list never changes  and harnesses that try to be clever about dynamically pruning the tool list per phase end up breaking their own cache, paying full price for the privilege.</p>
+
+    <p>The principle that survives in production is to keep the tool list small and stable. Small because the model performs better when it has fewer options and reasoning is cheaper when there is less to read. Stable because a tool list that mutates across turns is a cache that never hits. If you have a genuine need for a large library of capabilities  a customer-support agent that touches sixty different internal systems, for instance  the working pattern is to keep a stable core of perhaps a dozen tools that are always present, and dynamically load extended tools per task only when they are clearly relevant, selected by an embedding index rather than by the model itself. This keeps the prefix stable for the bulk of cases and only breaks the cache on the rare task where extended tools are genuinely needed.</p>
+
+    <p>A useful audit for an existing harness: list every tool. For each one, ask when it was last used in production. If a tool has not been called in a fortnight, it is probably costing you tokens every turn for no benefit. Remove it. Run the benchmark again. The success rate will almost certainly go up, and the cost per task will almost certainly go down.</p>
+
+    <h2>Context Cannot Grow Forever</h2>
+
+    <p>Even with a perfect prefix and a tight tool list, a long-running agent will eventually run into a different problem: the conversation history itself. Every tool call adds tokens. Every model response adds tokens. By turn fifty, the running total may be over a hundred thousand tokens, all of which are being re-sent on every turn. Even at cached rates, this gets expensive  and at some point, you simply run out of context window.</p>
+
+    <p>The naive responses are both wrong. Trimming old messages out of the middle of the history breaks the prefix and destroys the cache. Letting the history grow unboundedly hits the model's context ceiling and crashes the session. The working answer is compaction: at a defined threshold  usually somewhere between sixty and ninety turns into a long task  replace the oldest section of the conversation with a summary generated by a smaller, cheaper model. Keep the most recent ten to twenty turns verbatim. The compaction is itself a cache-breaking event, because the summary is new text, but it happens once, after which the new prefix becomes the basis for the next batch of cached calls.</p>
+
+    <p>The pattern that works in practice is to append-only the conversation as it grows, never modifying past turns, and to perform compaction as a discrete operation only when needed. The summarisation can be done by a model an order of magnitude cheaper than the main agent  a small fast model summarising thirty turns of history costs pennies, compared to the dollars you would otherwise pay to keep sending those thirty turns to a frontier model on every subsequent call.</p>
+
+    <p>There is also a coupling here with the goal-drift problem that agents exhibit on long tasks. By turn forty, the original objective stated at turn one is a tiny fraction of the total tokens in the conversation, and the model's attention has drifted toward the more recent activity. This is not the model forgetting; it is a structural property of how attention works over long sequences. The remedy is to keep the goal explicitly recited near the end of the context window  a working memory document that the agent reads and updates at every step, so the objective stays in the part of the prompt the model is paying the most attention to. This is also cheap to implement and tends to improve both task completion and the rate at which the agent declares premature completion of a task it has not actually finished.</p>
+
+    <h2>What Happens When the Agent Gets Stuck</h2>
+
+    <p>The fourth class of cost leak is the one that ruins quarterly budgets. An agent that gets into a loop  repeatedly trying the same approach, repeatedly hitting the same error, repeatedly attempting to call a tool that does not exist  will burn through its budget without producing useful output. Without intervention, a stuck agent runs until something else stops it: a timeout, a turn limit, a billing alert. By that point, you have paid for an answer you are not going to ship.</p>
+
+    <p>Three patterns reduce this exposure, none of them complicated. The first is a hard time or turn budget. Every agent run has a ceiling. The Waterloo paper used a wall-clock budget of three hundred seconds per query, with a deliberate "submit your best answer now" instruction injected at seventy percent of the budget. This is a simple wrapper around the loop  at the threshold, you stop allowing new tool calls and force the model to produce a final answer with whatever it has. It is not elegant, but it converts an unbounded liability into a bounded one. Once you have a budget, you can price the agent.</p>
+
+    <p>The second is loop detection. If the agent has called the same tool with the same arguments three times in a row, or has hit the same error message four times, the harness can detect this and inject a steering message: "you have tried this approach repeatedly without progress; consider a different angle." This is a small piece of bookkeeping in the loop  track recent actions, compare for repetition, and trigger a reset prompt if a threshold is crossed. The cost of the bookkeeping is trivial. The cost of not doing it can be every remaining turn in the agent's budget.</p>
+
+    <p>The third is a verification step before the agent is allowed to declare success. Agents have a strong tendency to call their own task complete when the local state looks plausible, even when the underlying work is not done. A single extra turn at the end  "before marking this complete, verify each of the following points"  catches a meaningful fraction of premature completions and is far cheaper than reprocessing a failed task from scratch.</p>
+
+    <p>There is also a subtler failure mode that costs money silently: the agent that finds a wrong answer early, commits to it, and spends the rest of its budget elaborating on the wrong answer. This is a behavioural failure of the model rather than the harness, but the harness shapes it. An agent whose harness encourages broad exploration before deep commitment will recover; an agent whose harness rewards depth-first pursuit of the first plausible-looking lead will not. The Waterloo paper observed a striking version of this: two frontier models at similar cost produced an eighteen-point accuracy gap on the same benchmark, almost entirely because one of them kept committing to weak hypotheses and the other kept backing out of them. The harness cannot fix the model's underlying tendency, but it can structure the prompt to discourage premature commitment, and that structuring is essentially free.</p>
+
+    <blockquote>
+        <p>Most agent budgets are not blown by a single expensive turn. They are blown by a hundred cheap turns the agent took after it had already failed and not noticed.</p>
+    </blockquote>
+
+    <h2>The Observability Question</h2>
+
+    <p>The unifying theme across the four areas above is that you cannot fix what you cannot see. Most teams running agents in production have no instrumentation on the things that actually drive cost. They can tell you the model and the rate card. They cannot tell you their cache hit rate, their average turn count per task, their tool error rate, or how often the agent declares completion prematurely.</p>
+
+    <p>The minimum useful instrumentation is small. Log the input and output token counts on every model call. Log the cached vs uncached split  every provider returns this in the usage object on the response. Log the tool calls, including which tool, what arguments, and whether it errored. Log the total turn count and total wall-clock time per task. At the end of each run, compute a small report: tokens spent, cache hit rate, error rate per tool, turns to completion, dollar cost. None of this is hard. Most of it is a decorator around your existing API client.</p>
+
+    <p>The reason most teams skip this is that the cost of a single run is small enough to ignore. The mistake is treating each run as the unit. The right unit is the trajectory of the harness over weeks: cache hit rate trending down because someone added a timestamp to the system prompt; error rate spiking on a particular tool after an API change; turn count creeping up because the goal-drift problem got worse after the context window expanded. None of these are visible without instrumentation, and all of them compound. By the time the finance team is asking questions, you are months into a regression you cannot diagnose.</p>
+
+    <p>The three numbers worth tracking, in priority order, are cache hit rate (target above eighty percent on stable workloads), average turns to completion (track the trend, not the absolute), and error rate per tool (anything above thirty percent is a candidate for removal or redesign). These three together explain most of the variance in cost across agents doing similar work. They are also stable across model swaps, which makes them useful as a continuity metric when the underlying model changes.</p>
+
+    <h2>Why This Matters More Than Model Selection</h2>
+
+    <p>The argument running underneath all of this is that the harness is where the engineering leverage in agent systems actually lives. Models are released every few months. They get cheaper. They get deprecated. They get outpaced by the next release. A team whose advantage is "we have the best model" has an advantage with a shelf life of two quarters. A team whose advantage is "our harness costs a tenth of theirs to run on the same model" has an advantage that survives model swaps, because the same harness practices apply to whatever model ships next.</p>
+
+    <p>This is not an argument against caring about model quality. A better model produces better answers, and that matters. It is an argument against the implicit framing that model selection is the lever and everything else is plumbing. In practice it is the other way around. Model selection is roughly fixed by capability and price. The plumbing is where teams differentiate. The difference between an agent product that ships and one that gets killed in cost review is rarely about which model was picked. It is about whether the harness was engineered or assembled.</p>
+
+    <p>The frustrating part is that the discipline is not exotic. Stable prefixes, small tool lists, append-only context, compaction, budgets, verification, and instrumentation are familiar to anyone who has built a backend system. They are routine practices, applied to an unfamiliar domain. The reason they are not yet universal in agent code is mostly that agent code is new, the cost feedback loops are slow, and the frameworks that most teams reach for default to none of them.</p>
+
+    <p>The teams that absorb this and build for it will be better positioned in a year than the teams treating cost as a model-selection problem. The technology is not the hard part. The technology is broadly available and improving fast. The hard part is the engineering hygiene around it  the same discipline that separates production-quality backend systems from prototypes that work on the demo and fall over in production. The dollar gap between $400 and $40 on the same task is not magic. It is just engineering, applied or not applied.</p>
+
+    <blockquote>
+        <p>The next year of agent products will not be won by the team with the best model. It will be won by the team whose harness lets them ship an agent that is actually profitable to run.</p>
+    </blockquote>
+
+    <p>That is the cost-mechanics argument. Everything else is implementation. In a later post I will walk through a working harness implementation that puts these patterns into code, including the small middleware layers that make the cost protections reliable rather than aspirational.</p>
+
+    <p class="disclaimer">This blog post was rephrased, formatted, and refined with the help of an LLM. However, the ideas, thinking, concepts, and core content are my own.</p>
+
+</body>
+</html>
