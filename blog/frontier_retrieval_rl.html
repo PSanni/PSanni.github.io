@@ -1,0 +1,340 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>A Few Hundred Dollars for a Frontier-Class Search Agent</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --text-primary: #1a1a1a;
+            --text-secondary: #666;
+            --bg-primary: #ffffff;
+            --border-color: #e0e0e0;
+            --accent-color: #0066cc;
+            --blockquote-bg: #f5f5f5;
+        }
+
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        html, body {
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+            color: var(--text-primary);
+            background-color: var(--bg-primary);
+            line-height: 1.6;
+        }
+
+        body { padding: 2rem 1rem; }
+        .page-wrapper { max-width: 700px; margin: 0 auto; }
+
+        .back-link {
+            display: inline-block; margin-bottom: 2rem;
+            color: var(--accent-color); text-decoration: none; font-size: 0.95rem;
+        }
+        .back-link:hover { text-decoration: underline; }
+
+        h1 { font-size: 2rem; font-weight: 700; margin-bottom: 1.5rem; line-height: 1.3; }
+
+        .header-metadata {
+            display: flex; gap: 1rem; flex-wrap: wrap;
+            margin-bottom: 2rem; font-size: 0.85rem; color: var(--text-secondary);
+        }
+        .metadata-tag { background: #f0f0f0; padding: 0.3rem 0.6rem; border-radius: 3px; }
+
+        hr { border: none; height: 1px; background: var(--border-color); margin: 2rem 0; }
+
+        h2 { font-size: 1.4rem; font-weight: 700; margin-top: 2.5rem; margin-bottom: 1.2rem; }
+        h3 { font-size: 1.1rem; font-weight: 600; margin-top: 1.8rem; margin-bottom: 0.8rem; }
+
+        p { margin-bottom: 1.2rem; color: var(--text-primary); text-align: justify; }
+
+        blockquote {
+            border-left: 4px solid var(--accent-color); background: var(--blockquote-bg);
+            padding: 1rem 1.2rem; margin: 1.5rem 0; font-style: italic; color: var(--text-secondary);
+        }
+
+        ul, ol { margin-left: 1.5rem; margin-bottom: 1.2rem; }
+        li { margin-bottom: 0.5rem; }
+
+        code {
+            font-family: 'Courier New', monospace; background: #f5f5f5;
+            padding: 0.2rem 0.4rem; border-radius: 2px; font-size: 0.9rem;
+        }
+        pre { background: #f5f5f5; padding: 1rem; border-radius: 4px; overflow-x: auto; margin-bottom: 1.2rem; }
+        pre code { background: none; padding: 0; }
+
+        .formula {
+            background: #fafafa; border: 1px solid var(--border-color);
+            border-radius: 4px; padding: 1rem 1.2rem; margin: 1.2rem 0;
+            font-family: 'Courier New', monospace; font-size: 0.92rem;
+            line-height: 1.7; overflow-x: auto; color: #222;
+        }
+        .formula .lbl {
+            color: var(--text-secondary); font-family: 'Inter', sans-serif;
+            font-size: 0.8rem; display: block; margin-bottom: 0.4rem;
+        }
+
+        figure { margin: 1.8rem 0; }
+        figure img {
+            width: 100%; height: auto; display: block;
+            border: 1px solid var(--border-color); border-radius: 6px; background: #fff;
+        }
+        figcaption { font-size: 0.82rem; color: var(--text-secondary); margin-top: 0.6rem; text-align: center; }
+
+        table { width: 100%; border-collapse: collapse; margin: 1.4rem 0; font-size: 0.9rem; }
+        th, td { padding: 0.55rem 0.7rem; border-bottom: 1px solid var(--border-color); text-align: right; }
+        th:first-child, td:first-child { text-align: left; }
+        th { font-weight: 600; background: #f7f7f7; }
+        tr.highlight td { font-weight: 600; background: #f0f6ff; }
+        .caption { font-size: 0.82rem; color: var(--text-secondary); margin: -0.6rem 0 1.4rem; text-align: center; }
+
+        strong { font-weight: 600; }
+        em { font-style: italic; }
+
+        @media (max-width: 640px) {
+            h1 { font-size: 1.5rem; }
+            h2 { font-size: 1.1rem; }
+            .page-wrapper { padding: 0 0.5rem; }
+            .formula { font-size: 0.8rem; }
+            table { font-size: 0.8rem; }
+        }
+    </style>
+</head>
+<body>
+    <div class="page-wrapper">
+        <a href="https://www.sannipatel.me/blog.html" class="back-link">← Go back to blogs</a>
+
+        <h1>A Few Hundred Dollars for a Frontier-Class Search Agent</h1>
+
+        <div class="header-metadata">
+            <span class="metadata-tag">reinforcement learning</span>
+            <span class="metadata-tag">agentic search</span>
+            <span class="metadata-tag">GRPO</span>
+            <span class="metadata-tag">NDCG</span>
+            <span class="metadata-tag">token-in token-out</span>
+            <span class="metadata-tag">small models</span>
+        </div>
+
+        <hr>
+
+        <p>I want to make a case that runs against the grain of almost every retrieval stack I have worked on. The received wisdom is that you buy quality with scale  a bigger embedding model, a heavier reranker, a frontier LLM sitting on top charging by the token. I spent a few days and about fifty dollars testing the opposite bet: take a small, four-billion-parameter model, hand it tools and a reinforcement-learning environment built around one cheap, verifiable reward, and teach it to <em>search</em>. Not to answer. To search.</p>
+
+        <p>First, why agentic search at all. The standard pattern is RAG: embed the query, pull the top-k relevant documents in a single shot, and hand them to a model that writes the answer. That works beautifully when the answer lives in one passage. But the chain breaks on <em>multi-hop</em> questions  the ones where you have to find one fact, use it to work out what to look for next, and stitch several lookups together. A single retrieval pass cannot do that; it does not know what the second hop is until it has read the first. What those questions actually need is a model that searches, reads, reasons, and searches again  an agent <em>in</em> the loop, not a retriever sitting in front of it.</p>
+
+        <p>And that is exactly where the interesting trade lives: efficiency, accuracy, and cost all pull against one another. More reasoning and more tool calls buy accuracy on hard questions, but they cost tokens, latency, and dollars  brutally so if a frontier model is doing the reasoning on every hop. This tension is why a whole stream of research has swung toward agentic search. The insight underneath it is a simple chain: <strong>cheaper, sharper retrieval of knowledge &#8594; cheaper reasoning &#8594; a faster and more correct answer</strong>. Push the cost and quality of the search step in the right direction and the entire pipeline downstream of it gets cheaper and better. This post is about pushing on that first link  making the knowledge-finding step itself small, fast, and accurate.</p>
+
+        <p>The punchline first, because it is the reason I am writing this at all. On a fair, held-out benchmark, that little model beats a tuned vector-plus-reranker pipeline and lands within noise of a frontier model doing the same task  while being small enough to run locally, fast enough to sit behind a search bar, and cheap enough that the whole training run cost less than a nice dinner. <strong>With the right data and the right RL environment, a task-specific model that is smaller, faster, and cheaper can reach frontier-class performance for a few hundred dollars, not a few hundred thousand.</strong></p>
+
+        <p>This post is the whole story: the design choices, the formulas that make the training stable, the pre-flight machinery I built to keep the data honest, the moment I watched the model teach itself to stop guessing and start searching, and the numbers at the end. I will also be honest about what I could not claim.</p>
+
+        <h2>The one decision everything hangs on: return documents, not answers</h2>
+
+        <p>The model does not write an answer. Given a question, it issues its own searches over a fixed corpus, reads what comes back, and ends by emitting a <strong>ranked list of document IDs</strong>  the sources it believes are necessary. It never says "the answer is Toronto Coach Terminal." It says "look at documents 42 and 118." That one choice pays off three times over, and each payoff turned out to matter for cheap, stable training:</p>
+
+        <ul>
+            <li><strong>The reward becomes verifiable.</strong> Scoring a ranked list against a known target set is set membership and a logarithm. No LLM judge, no fuzzy answer-matching, no reward model to drift.</li>
+            <li><strong>It resists memorization.</strong> Requiring the actual source documents forces real tool use instead of guessing an answer from parametric memory.</li>
+            <li><strong>It gives partial credit.</strong> Finding two of three needed documents beats finding none, and the metric feels that difference smoothly.</li>
+        </ul>
+
+        <p>The interaction is a three-tool loop, and it is deliberately small:</p>
+
+        <pre><code>search("query")        -> documents with IDs + short excerpts
+read("doc_id")         -> the full text of one document
+report(["id1","id2"])  -> terminal: submit the ranked list, end the episode</code></pre>
+
+        <p>Every document ID the model sees is <strong>obfuscated and re-randomised each rollout</strong>, so it cannot memorise a question-to-ID lookup instead of retrieving  I return to the mechanics of this in the data section.</p>
+
+        <h2>The reward: NDCG over a target set</h2>
+
+        <p>The model's ranked list <code>L = (l&#8321;, …, l&#8345;)</code> is scored against the target set <code>T</code>  the documents actually needed  with <strong>Normalized Discounted Cumulative Gain</strong> under binary relevance. A document is relevant (1) or not (0).</p>
+
+        <div class="formula">
+<span class="lbl">Discounted cumulative gain, ideal DCG, and the normalized score</span>
+DCG(L, T)   =  &#8721;&#7522;  1[l&#7522; &#8712; T] / log&#8322;(i + 1)
+
+IDCG(T)     =  &#8721;&#7522;&#8331;&#8321;..|T|  1 / log&#8322;(i + 1)
+
+NDCG(L, T)  =  DCG(L, T) / IDCG(T)          &#8712; [0, 1]</div>
+
+        <p>The logarithmic discount is exactly why I chose NDCG over plain recall. It rewards putting needed documents <em>high</em> in the list, and its diminishing returns quietly punish padding the list to fish for credit. A model that dumps ten documents to be safe pays for it; a model that returns a short, correct, well-ordered list scores best. That pressure toward a precise list  rather than a hedge  turns out to be the entire personality of the trained model.</p>
+
+        <p>The full training reward adds two light shaping terms: a format bonus so the output stays parseable, and a soft length penalty that nudges the reported count toward the true target size.</p>
+
+        <div class="formula">
+<span class="lbl">Composite reward for a single rollout</span>
+R  =  w_ndcg &#183; NDCG(L, T)  +  w_fmt &#183; 1[format ok]  &#8722;  &#955; &#183; max(0, |L| &#8722; &#964;&#183;|T|) / |T|</div>
+
+        <blockquote>NDCG is exact and cheap. Its <em>value</em> as a signal depends entirely on the target set T matching the truly-necessary set. That is not a modeling problem. It is a data problem  and it is where most of my time actually went.</blockquote>
+
+        <h2>The learning rule: GRPO</h2>
+
+        <p>Training uses <strong>Group Relative Policy Optimization</strong>  no separate value network, which is a real simplification on a single GPU. For each question I sample a group of <code>G</code> rollouts, score each with the reward above, and compute every rollout's advantage <em>relative to its own group's mean</em>. Beat your group and you get reinforced; fall below it and you get suppressed.</p>
+
+        <div class="formula">
+<span class="lbl">Group-relative advantage for rollout i (rewards r&#8321;..r_G on the same question)</span>
+&#194;&#7522;  =  ( r&#7522; &#8722; mean(r&#8321;, …, r_G) ) / ( std(r&#8321;, …, r_G) + &#949; )
+
+<span class="lbl">length-debiased variant (Dr.GRPO): drop the std, drop per-sequence length norm</span>
+&#194;&#7522;  =  r&#7522; &#8722; mean(r&#8321;, …, r_G)</div>
+
+        <p>The policy is then updated with a clipped surrogate objective, evaluated per token. With <code>&#961;&#7522;&#8348; = &#960;&#952;(o&#7522;&#8348;) / &#960;&#952;_old(o&#7522;&#8348;)</code> the importance ratio for token <code>t</code> of rollout <code>i</code>, and <code>m&#7522;&#8348;</code> a per-token mask defined in the next section:</p>
+
+        <div class="formula">
+<span class="lbl">GRPO objective  masked, clipped, group-relative</span>
+J(&#952;)  =  (1 / &#8721;&#7522;&#8348; m&#7522;&#8348;) &#8721;&#7522; &#8721;&#8348;  m&#7522;&#8348; &#183; min( &#961;&#7522;&#8348; &#194;&#7522; ,  clip(&#961;&#7522;&#8348;, 1&#8722;&#949;, 1+&#949;) &#194;&#7522; )   &#8722;   &#946; &#183; D_KL(&#960;&#952; &#8214; &#960;_ref)
+
+<span class="lbl">gradient step</span>
+&#952;  &#8592;  &#952;  +  &#951; &#8711;&#952; J(&#952;)</div>
+
+        <p>One property of this objective quietly governs everything about the data: <strong>a question only produces a gradient if its rollouts disagree.</strong> If all <code>G</code> rollouts score the same, the mean equals every reward, every advantage is zero, and the question teaches the model nothing. Questions the model already always solves, or always fails, are dead weight  a fact I return to when I get to the data.</p>
+
+        <p>Run this loop and the reward climbs. Figure 1 is the full training run I analyze throughout the rest of the post  300 steps of GRPO on the 4B policy, group size 8, 32 questions per step. Mean reward rises from roughly 0.28 to 0.70; the curve is noisy because each step samples a fresh batch of questions, but the trend is monotonic. Because NDCG is the dominant term of the reward, this is close to a direct measure of retrieval quality, not just format or length compliance. Everything that follows  the data choices, the behavior curves, the final numbers  is about understanding and improving this curve.</p>
+
+        <figure>
+            <img src="assets/reward.png" alt="Training reward rising from ~0.28 to ~0.70 over 300 steps">
+            <figcaption>Figure 1. Mean group reward per step, over the 300-step training run.</figcaption>
+        </figure>
+
+        <h2>Token-in, token-out: computing that per-token loss correctly</h2>
+
+        <p>The objective above sums over tokens, so before it can run, something has to decide <em>which tokens</em> the loss is computed on and <em>what the model's probability for each one is</em>. In a single-turn setup this is trivial: the model generates one completion, you have its tokens, you compute their log-probabilities, done. In a multi-turn agent it is the detail most likely to silently destroy the run.</p>
+
+        <p>A rollout here is not a single completion. It is a long sequence that alternates between what the model generated and what the environment injected:</p>
+
+        <pre><code>[system prompt]
+[user: question]
+[assistant: search("union navy hospital ship")]     &#8592; model tokens
+[tool: "[a1b2c3d4] USS Home was a hospital ship..."] &#8592; injected tokens
+[assistant: read("a1b2c3d4")]                        &#8592; model tokens
+[tool: "USS Home (1862) was purchased..."]           &#8592; injected tokens
+[assistant: report(["a1b2c3d4","e5f6g7h8"])]         &#8592; model tokens</code></pre>
+
+        <p>To train, the framework needs the token IDs for this whole sequence. The tempting shortcut  the one that broke my first runs  is to store the rollout as a list of structured message objects and, at training time, rebuild the token sequence by running the chat template over them again: <code>tokenize(apply_chat_template(messages))</code>. It looks harmless. It is not, because <strong>re-tokenizing a reconstructed conversation does not reproduce the exact tokens the model originally emitted.</strong></p>
+
+        <p>Here is the concrete failure. Suppose during generation the model actually produced, as its own tokens, the ending of an assistant turn:</p>
+
+        <pre><code>generated tokens:   … &#9251;report (["  a1b2c3d4  "])  \n</code></pre>
+
+        <p>When that turn is serialized to a message object and later re-tokenized, the chat template re-inserts role markers and normalizes whitespace  it may drop the trailing newline, add one after the tool block, or change the space that precedes <code>report</code>. Byte-pair encoding is sensitive to exactly those neighboring characters, so a changed space or newline re-segments the boundary: what was one token <code>&#9251;report</code> becomes two, <code>&#9251;</code> + <code>report</code>, and every token index downstream shifts. The reconstructed sequence is <em>almost</em> the original, differing only at the seams where model output meets tool output  but "almost" is fatal.</p>
+
+        <p>The damage happens in the importance ratio. GRPO evaluates <code>&#961;&#7522;&#8348; = &#960;&#952;(o&#7522;&#8348;) / &#960;&#952;_old(o&#7522;&#8348;)</code> on whatever tokens you feed it. At a re-segmented seam, the token <code>o&#7522;&#8348;</code> is one the model would essentially never have generated in that context, so <code>&#960;&#952;_old(o&#7522;&#8348;)</code> is tiny. Dividing by a tiny number makes <code>&#961;&#7522;&#8348;</code> explode; a handful of these seam tokens then dominate the gradient. The visible symptom is a reward curve that rises for a while and then falls off a cliff into degenerate output  exactly the trajectory reported in prior work on this bug.</p>
+
+        <p>The fix is <strong>token-in, token-out</strong>: never round-trip through message objects. Keep the exact token IDs the model emitted during generation and train on those directly. The tool-result tokens stay in the sequence so the context is correct, but they are held out of the loss with a mask  I do not want to train the model to predict the tool's output, only its own tokens.</p>
+
+        <div class="formula">
+<span class="lbl">Token mask  only the model's own generated tokens carry gradient</span>
+m&#7522;&#8348;  =  1   if token t of rollout i was generated by the policy
+      =  0   if it is an injected tool / observation token</div>
+
+        <p>No reconstruction, no re-tokenization, no importance-sampling hack to paper over the seam. Just the real tokens the model produced, with the injected text masked out. It is the least glamorous decision in the project and close to the most important: with it the reward curve rises and stays up; without it, it detonates around step 200.</p>
+
+        <h2>Pre-flight: filtering the data before it wastes a single gradient</h2>
+
+        <p>Recall the zero-advantage property of GRPO: a question only produces a gradient if its rollouts disagree. That is not a footnote; it is a budget. On a single GPU, every rollout costs time, and a question whose group unanimously scores 1.0 (too easy) or 0.0 (broken or too hard) burns that time for nothing. So before committing any data to a training run, I built a <strong>pre-flight difficulty filter</strong>: run a small group of rollouts with the current policy on each candidate question, and keep only the ones where the reward has variance across the group.</p>
+
+        <div class="formula">
+<span class="lbl">Keep question q only if its group rewards actually disagree</span>
+keep(q)  =  1   if  std( r&#8321;, …, r_G )  >  &#948;        (&#948; &#8776; 0.05)
+         =  0   otherwise   &#8592;  zero-advantage: every &#194;&#7522; = 0, no gradient</div>
+
+        <p>The intuition is simple: a synthetic question is only useful if the model <em>sometimes</em> fails it. All-perfect groups mean the question is trivial; all-zero groups mean it is broken or unanswerable. What survives is the band in the middle  questions hard enough to teach something but not so hard they are hopeless. This is the calibration loop that makes data <em>trainable</em>, not merely valid.</p>
+
+        <p>The pre-flight also became my best debugging tool, entirely by accident. The very first time I ran it, it filtered out <em>everything</em>  every question came back zero-advantage. My first reaction was despair: the questions must all be broken. They were not. The filter had surfaced a much deeper bug. My reward was comparing the model's <em>obfuscated</em> reported IDs against the <em>real</em> target IDs, so nothing ever matched and every rollout scored a flat zero  perfectly uniform, perfectly zero-advantage. The filter was working correctly; it was screaming that my scoring was wrong.</p>
+
+        <p>Fixing that surfaced the next layer. When I first tried a smaller 1.7B policy, the pre-flight traces showed it was not driving the tools at all  instead of calling <code>search</code> and waiting for a real result, it would hallucinate the entire tool conversation inside one message, inventing fake document IDs and fake search results. It never yielded control back to the loop, so it never saw a real document. Real IDs only enter the context when the environment actually executes a tool; a model that role-plays the whole exchange in its head is arguing with a hallucination. Moving to the 4B model, which respects the turn-by-turn protocol, fixed it. I would not have found either bug without the pre-flight staring me in the face with a wall of zeros.</p>
+
+        <blockquote>The lesson I keep relearning: the failures that cost you the most are the ones that produce silently wrong numbers, not loud crashes. A filter that tells you "none of your data has signal" is worth more than a stack trace.</blockquote>
+
+        <p>For the final run I actually trained on real human-written multi-hop questions, whose labels are already trustworthy, so the pre-flight was not strictly necessary  GRPO simply gets no gradient from any zero-advantage group and moves on. But building it was what taught me the environment was correct, and it is the exact machinery you need the moment you generate your own data.</p>
+
+        <h2>The data: real multi-hop questions over one index</h2>
+
+        <p>I built the corpus from a multi-hop QA dataset's paragraphs, deduplicated by text. That dedup step sounds like housekeeping and was in fact one of the largest quality wins in the project. The raw corpus stores the same passage under many different IDs, so the agent would surface the <em>right passage under the wrong ID</em> and score zero  a correct answer marked incorrect, invisibly. Collapsing identical passages to a single canonical ID, and remapping every label to it, removed a large hidden penalty I had been paying without knowing it.</p>
+
+        <p>Exact-text deduplication is only the surface of the problem, though, and it exposes something specific about training a search agent with a retrieval reward. NDCG makes the reward <em>verifiable</em>, but it does so by treating relevance as <strong>binary</strong>: the labeled target set <code>T</code> is relevant, and every other document in the corpus is not. That assumption is convenient and false. In a real corpus, plenty of documents outside <code>T</code> are partially or genuinely relevant to the question  they are simply not the passages the dataset happened to label. Under a binary target set these are <strong>false negatives</strong>: on-topic documents the reward scores as noise. When the agent retrieves one, it is penalized for surfacing something that is, in substance, a reasonable answer.</p>
+
+        <p>This matters for learning, not just for bookkeeping. The gradient is now fighting label noise: the policy has to run many more rollouts to disentangle "the document the dataset labeled" from "a document that is clearly on-topic but unlabeled," because the reward keeps punishing the latter inconsistently. Exact-hash dedup does nothing for this  two passages can be word-for-word different and still be conceptual near-duplicates that create exactly this false-negative pressure. To probe it, I ran a separate experiment on a small subset with a <em>concept/topic-level</em> deduplication, collapsing documents that cover the same fact rather than the same string, so that each question's answer has essentially one home in the corpus and the false-negative rate drops.</p>
+
+        <figure>
+            <img src="assets/fast_learning.png" alt="Reward on a concept-deduplicated subset rising from ~0.35 to ~0.85 in under 90 steps">
+            <figcaption>Figure 2. Training reward on a small subset after concept/topic-level deduplication  it rises faster and to a higher ceiling (≈0.85 in under 90 steps) than the full-corpus run in Figure 1, because removing conceptual false negatives makes the reward signal cleaner.</figcaption>
+        </figure>
+
+        <p>The effect is clear: with the conceptual false negatives removed, reward climbs faster and reaches a higher ceiling, because the model no longer wastes rollouts being punished for reasonable retrievals. But this is a training-speed result, not a free lunch, and it is worth being precise about the trade. Curating the corpus down to one document per concept sanitizes the retrieval space  the model is now learning in a cleaner world than the one it will face in production, where near-duplicate and partially-relevant documents are the norm. That version trains faster but generalizes worse. The full, messy corpus is slower to learn from precisely because it forces the model to cope with the ambiguity it will actually encounter. For the results in this post I trained on the full corpus and paid the slower curve on purpose; the concept-dedup run is here to isolate <em>why</em> the full curve is slower, not to claim it as the better recipe.</p>
+
+        <p>The model trains on the dataset's real training questions, whose supporting-document labels give the target set <code>T</code> directly. Evaluation is on a strictly held-out set of real questions, scored the same way. Training touched no evaluation question and no evaluation label; the corpus is shared between train and eval by design, exactly as closed-corpus retrieval always is.</p>
+
+        <p>The questions are multi-hop by construction: answering one means chaining facts across several documents, and in this dataset the chains range from two hops up to a maximum of five. A two-hop question asks the agent to find one document, extract a fact, and use it to locate a second; a five-hop question repeats that four times. That ceiling is worth holding onto, because it bounds the behavior. No question requires more than five documents, so a well-behaved policy needs at most roughly five search-and-read cycles and no more  which is exactly why, in the next section, the tool-call curve rises and then flattens near that ceiling instead of growing without bound. The agent learns to make about as many calls as the question's hop depth demands.</p>
+
+        <p>One more safeguard follows directly from the task being "report document IDs." Over many epochs, a model could try to shortcut retrieval by memorizing a question-to-ID mapping rather than searching. To close that door, the document IDs are re-randomized on every rollout: the same underlying document wears a different identifier each time the model sees it, and I map the reported IDs back to the real ones only when scoring. The mapping the model would need to memorize never holds still, so the only stable way to earn reward is to actually find the document, not to recall its name.</p>
+
+        <h2>Training dynamics</h2>
+
+        <p>Figure 1 showed the reward rising over the run; the accuracy gain it represents is the product of a behavioral change, which two more curves make explicit. Both are measured on the same run.</p>
+
+        <figure>
+            <img src="assests/completion_tokens.png" alt="Completion tokens per rollout falling from ~330 to ~120">
+            <figcaption>Figure 3. Mean completion tokens per rollout.</figcaption>
+        </figure>
+
+        <figure>
+            <img src="assets/tool_calls.png" alt="Tool calls per rollout rising from ~2 to ~4.3">
+            <figcaption>Figure 4. Mean tool calls per rollout.</figcaption>
+        </figure>
+
+        <p>Figures 3 and 4 describe the behavioral change behind the reward curve. Mean completion length falls from roughly 330 tokens to 120 (Figure 3), while the mean number of tool calls per rollout rises from about 2 to 4.3 (Figure 4). Early in training the policy generates long completions and few tool calls  it reasons from parametric memory and rarely queries the corpus, which scores near zero under the reward. As training proceeds it shortens its reasoning and issues more search and read calls, grounding each answer in retrieved documents. The tool-call count does not grow without bound: it flattens around 4 to 5, which is the corpus's hop ceiling  no question needs more than five documents, so a competent policy converges on roughly one search-and-read cycle per hop and stops there. Neither behavior is specified in the environment or the prompt; both emerge from optimizing the NDCG reward under the length penalty. The net effect is a policy that reasons less in text and retrieves about as much as each question's hop depth requires.</p>
+
+        <h2>Results</h2>
+
+        <p>Every system below is evaluated on the identical held-out question set (n = 200) over the identical corpus, so the comparison is fair. The classic baselines return the top ten documents; the agent returns only what it decides to report.</p>
+
+        <table>
+            <thead>
+                <tr><th>System</th><th>NDCG</th><th>Recall</th><th>Precision</th><th>F1</th></tr>
+            </thead>
+            <tbody>
+                <tr><td>Vector-only (top-10)</td><td>0.437</td><td>0.471</td><td>0.113</td><td>0.180</td></tr>
+                <tr><td>Vector + reranker (top-10)</td><td>0.477</td><td>0.471</td><td>0.113</td><td>0.180</td></tr>
+                <tr class="highlight"><td>Trained 4B (1 rollout)</td><td>0.468</td><td>0.420</td><td>0.495</td><td>0.440</td></tr>
+                <tr class="highlight"><td>Trained 4B + RRF (2 rollouts)</td><td>0.594</td><td>0.574</td><td>0.473</td><td>0.498</td></tr>
+                <tr><td>GPT-5.4, frontier (1 rollout)</td><td>0.620</td><td>0.586</td><td>0.620</td><td>0.588</td></tr>
+            </tbody>
+        </table>
+        <div class="caption">Held-out real questions, n = 200, same corpus. RRF = 2 rollouts fused by Reciprocal Rank Fusion; every other row is single-shot.</div>
+
+        <p>Three readings, in order of importance.</p>
+
+        <p><strong>The trained 4B beats classical RAG.</strong> Single-shot, it ties the vector-plus-reranker pipeline on NDCG (0.468 vs 0.477) and sits well above vector-only (0.437). With four fused rollouts it pulls clearly ahead of the reranker on every metric at once. But the ranking score understates the difference; the precision and F1 columns are where the two approaches actually diverge.</p>
+
+        <p><strong>What precision and F1 imply.</strong> Precision is the fraction of returned documents that are actually relevant; F1 is the harmonic mean of precision and recall, the single number that rewards being both complete <em>and</em> clean. Notice first that the two baselines are identical on recall, precision, and F1 (0.471 / 0.113 / 0.180)  and they must be, because a reranker only <em>reorders</em> the same ten documents the vector search returned. It cannot change which documents are present, only their order, so it lifts NDCG (0.437 &#8594; 0.477) while leaving recall, precision, and F1 exactly where they were. Both baselines pay the same structural tax: to reach recall 0.47 they hand back ten documents per query, of which roughly nine are irrelevant. Precision 0.11 is precisely that  one relevant document for every nine passed downstream.</p>
+
+        <p>The trained agent inverts this. At precision 0.50 it returns a two-to-three document list that is right about half the time, and its F1 of 0.44 is more than double either baseline's 0.18  cleaner <em>and</em>, hop-for-hop, competitive on completeness. That gap is not cosmetic. Whatever consumes these results  a model that must read and reason over the returned set, or a person  spends its budget on what it is handed. A ten-document dump at precision 0.11 forces the consumer to sift nine distractors for every hit; a three-document list at precision 0.50 hands over a set it can act on. This is the length penalty in the reward paying off: NDCG on its own would tolerate a long hedge, so penalizing over-reporting is what converts a decent ranking into a short, trustworthy answer. It is the difference between a system that improves the <em>order</em> of the noise and one that removes it.</p>
+
+        <p><strong>It approaches the frontier model.</strong> GPT-5.4, driving the exact same tools, scores 0.620. My 4B with reciprocal-rank fusion reaches 0.594  a gap of 0.026, within noise at this sample size. A four-billion-parameter model, with a cheap parallel eval-time trick, comes within a whisker of a frontier system on the same task.</p>
+
+        <p><strong>Reciprocal Rank Fusion is the cheap lever that closes the gap.</strong> A single rollout is stochastic  it might miss a target on one attempt and catch it on another. Running a few and fusing their ranked lists surfaces the documents found consistently and pushes them to the top.</p>
+
+        <div class="formula">
+<span class="lbl">Reciprocal Rank Fusion over N rollout rankings (k = 60)</span>
+score(d)  =  &#8721;&#8345;&#8331;&#8321;..N  1 / ( k + rank_n(d) )        &#8594;  sort documents by score(d)</div>
+
+        <p>The rollouts run in parallel, so the recall it buys costs almost no wall-clock time. It is the eval-time analogue of the training thesis: a little more compute on a small model, spent well, goes a very long way.</p>
+
+        <h2>The part that is the actual point: the bill</h2>
+
+        <p>None of this would interest me if it cost what a frontier model costs to build. It did not. The training loop is a LoRA adapter  about <strong>0.4% of the model's parameters</strong>  updated for a few hundred steps on a <strong>single GPU</strong>. The base model serves its own rollouts and updates its own weights on the same card. The reward is free to compute. The data is a public dataset's real questions.</p>
+
+        <blockquote>The entire effort  the synthetic-data experiments, the pre-flight runs, the training, and all the false starts  came in on the order of tens of dollars of compute, comfortably under a few hundred. There is a well-known public precedent, an email agent trained with the same family of tools, that landed near eighty dollars on one GPU. I am in the same neighborhood.</blockquote>
+
+        <p>Now weigh that against inference, because that is where the asymmetry compounds in the opposite direction from where intuition points. A frontier model driving this agent is billed per token, per turn, forever  real money per query at scale, with a network round-trip on every search and every read. My 4B runs locally: no per-token bill, far lower latency, and a footprint small enough to serve as a sub-agent or power a search bar directly. You pay once, in tens of dollars, to <em>stop</em> paying a frontier model on every single request for the rest of the product's life.</p>
+
+        <p>That is the whole argument. Retrieval over a fixed corpus is bounded and verifiable. It does not need a general-purpose frontier model reasoning from scratch on every query. It needs a small model that has been taught the specific behavior  search, read, decide, report  by reinforcement learning against a cheap exact reward. Once you accept that framing, the economics invert: the specialist is smaller, faster, cheaper, and, on its own task, nearly as good as the generalist you were renting.</p>
+
+        <h2>What it adds up to</h2>
+
+        <p>A 4B model, one GPU, tens of dollars, a verifiable NDCG reward, token-exact GRPO, a pre-flight filter to keep the data honest, and a few hundred real multi-hop questions  and I got a search agent that beats a tuned vector-plus-reranker pipeline and runs within noise of a frontier model on the same task. The lever was never scale. It was the right reward, an RL environment that keeps training stable, data whose labels are actually the thing I wanted to measure, and the patience to watch a small model learn to stop guessing and start searching. Task-specific beats general-purpose on the task, and it does so at a price that turns "which frontier model do we rent" into "which behavior do we own."</p>
+
+    </div>
+</body>
+</html>
