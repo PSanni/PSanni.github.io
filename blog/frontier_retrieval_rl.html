@@ -175,7 +175,7 @@ R  =  w_ndcg &#183; NDCG(L, T)  +  w_fmt &#183; 1[format ok]  &#8722;  &#955; &#
 <span class="lbl">Group-relative advantage for rollout i (rewards r&#8321;..r_G on the same question)</span>
 &#194;&#7522;  =  ( r&#7522; &#8722; mean(r&#8321;, …, r_G) ) / ( std(r&#8321;, …, r_G) + &#949; )
 
-<span class="lbl">length-debiased variant (Dr.GRPO): drop the std, drop per-sequence length norm</span>
+<span class="lbl">length-debiased variant: drop the std, and drop the per-sequence length normalization</span>
 &#194;&#7522;  =  r&#7522; &#8722; mean(r&#8321;, …, r_G)</div>
 
         <p>The policy is then updated with a clipped surrogate objective, evaluated per token. With <code>&#961;&#7522;&#8348; = &#960;&#952;(o&#7522;&#8348;) / &#960;&#952;_old(o&#7522;&#8348;)</code> the importance ratio for token <code>t</code> of rollout <code>i</code>, and <code>m&#7522;&#8348;</code> a per-token mask defined in the next section:</p>
@@ -274,7 +274,7 @@ keep(q)  =  1   if  std( r&#8321;, …, r_G )  >  &#948;        (&#948; &#8776; 
         <p>Figure 1 showed the reward rising over the run; the accuracy gain it represents is the product of a behavioral change, which two more curves make explicit. Both are measured on the same run.</p>
 
         <figure>
-            <img src="assests/completion_tokens.png" alt="Completion tokens per rollout falling from ~330 to ~120">
+            <img src="assets/completion_tokens.png" alt="Completion tokens per rollout falling from ~330 to ~120">
             <figcaption>Figure 3. Mean completion tokens per rollout.</figcaption>
         </figure>
 
@@ -284,6 +284,15 @@ keep(q)  =  1   if  std( r&#8321;, …, r_G )  >  &#948;        (&#948; &#8776; 
         </figure>
 
         <p>Figures 3 and 4 describe the behavioral change behind the reward curve. Mean completion length falls from roughly 330 tokens to 120 (Figure 3), while the mean number of tool calls per rollout rises from about 2 to 4.3 (Figure 4). Early in training the policy generates long completions and few tool calls  it reasons from parametric memory and rarely queries the corpus, which scores near zero under the reward. As training proceeds it shortens its reasoning and issues more search and read calls, grounding each answer in retrieved documents. The tool-call count does not grow without bound: it flattens around 4 to 5, which is the corpus's hop ceiling  no question needs more than five documents, so a competent policy converges on roughly one search-and-read cycle per hop and stops there. Neither behavior is specified in the environment or the prompt; both emerge from optimizing the NDCG reward under the length penalty. The net effect is a policy that reasons less in text and retrieves about as much as each question's hop depth requires.</p>
+
+        <p>One detail decides whether the reward curve in Figure 1 climbs at all. The standard advantage normalizes each rollout's contribution by its length, which biases the gradient toward shorter or longer sequences depending on where reward concentrates. Figure 5 is an earlier run that kept that per-sequence length normalization: over the window shown the reward oscillates between roughly 0.15 and 0.46 with no upward trend, and the policy simply does not learn. Switching to the length-debiased advantage from the formula earlier, which drops the per-sequence normalization so a rollout's token count does not implicitly reweight it, is what produced the clean monotonic climb in Figure 1.</p>
+
+        <figure>
+            <img src="assets/length_normalized_reward.png" alt="Reward under per-sequence length normalization oscillating between ~0.15 and ~0.46 with no upward trend">
+            <figcaption>Figure 5. An earlier run that kept per-sequence length normalization in the advantage. The reward oscillates without a clear trend and the policy fails to improve, in contrast to the length-debiased run in Figure 1.</figcaption>
+        </figure>
+
+        <p>The same choice explains why the completion-length curve is trustworthy: because token count no longer reweights rollouts, the downward pressure on completion length in Figure 3 comes from a single intended source, the explicit length penalty in the reward, rather than a side effect of the update rule. The trade-off is worth stating plainly. Dropping length normalization can, over a long enough run, let the mean per-token advantage drift negative, since the lower-reward rollouts tend to be the longer ones, and that globally depresses token log-probabilities. Over 300 steps it does not bite, but on a much longer schedule it is the first thing I would watch.</p>
 
         <h2>Results</h2>
 
@@ -324,8 +333,6 @@ score(d)  =  &#8721;&#8345;&#8331;&#8321;..N  1 / ( k + rank_n(d) )        &#859
         <h2>The part that is the actual point: the bill</h2>
 
         <p>None of this would interest me if it cost what a frontier model costs to build. It did not. The training loop is a LoRA adapter  about <strong>0.4% of the model's parameters</strong>  updated for a few hundred steps on a <strong>single GPU</strong>. The base model serves its own rollouts and updates its own weights on the same card. The reward is free to compute. The data is a public dataset's real questions.</p>
-
-        <blockquote>The entire effort  the synthetic-data experiments, the pre-flight runs, the training, and all the false starts  came in on the order of tens of dollars of compute, comfortably under a few hundred. There is a well-known public precedent, an email agent trained with the same family of tools, that landed near eighty dollars on one GPU. I am in the same neighborhood.</blockquote>
 
         <p>Now weigh that against inference, because that is where the asymmetry compounds in the opposite direction from where intuition points. A frontier model driving this agent is billed per token, per turn, forever  real money per query at scale, with a network round-trip on every search and every read. My 4B runs locally: no per-token bill, far lower latency, and a footprint small enough to serve as a sub-agent or power a search bar directly. You pay once, in tens of dollars, to <em>stop</em> paying a frontier model on every single request for the rest of the product's life.</p>
 
