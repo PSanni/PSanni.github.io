@@ -1,0 +1,443 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>One Forward Pass: Rebuilding Jev's Architecture Bidirectionally</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --text-primary: #1a1a1a;
+            --text-secondary: #666;
+            --bg-primary: #ffffff;
+            --border-color: #e0e0e0;
+            --accent-color: #0066cc;
+            --blockquote-bg: #f5f5f5;
+        }
+
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        html, body {
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+            color: var(--text-primary);
+            background-color: var(--bg-primary);
+            line-height: 1.6;
+        }
+
+        body { padding: 2rem 1rem; }
+        .page-wrapper { max-width: 700px; margin: 0 auto; }
+
+        .back-link {
+            display: inline-block; margin-bottom: 2rem;
+            color: var(--accent-color); text-decoration: none; font-size: 0.95rem;
+        }
+        .back-link:hover { text-decoration: underline; }
+
+        h1 { font-size: 2rem; font-weight: 700; margin-bottom: 1.5rem; line-height: 1.3; }
+
+        .header-metadata {
+            display: flex; gap: 1rem; flex-wrap: wrap;
+            margin-bottom: 2rem; font-size: 0.85rem; color: var(--text-secondary);
+        }
+        .metadata-tag { background: #f0f0f0; padding: 0.3rem 0.6rem; border-radius: 3px; }
+
+        hr { border: none; height: 1px; background: var(--border-color); margin: 2rem 0; }
+
+        h2 { font-size: 1.4rem; font-weight: 700; margin-top: 2.5rem; margin-bottom: 1.2rem; }
+        h3 { font-size: 1.1rem; font-weight: 600; margin-top: 1.8rem; margin-bottom: 0.8rem; }
+
+        p { margin-bottom: 1.2rem; color: var(--text-primary); text-align: justify; }
+
+        blockquote {
+            border-left: 4px solid var(--accent-color); background: var(--blockquote-bg);
+            padding: 1rem 1.2rem; margin: 1.5rem 0; font-style: italic; color: var(--text-secondary);
+        }
+
+        ul, ol { margin-left: 1.5rem; margin-bottom: 1.2rem; }
+        li { margin-bottom: 0.5rem; }
+
+        code {
+            font-family: 'Courier New', monospace; background: #f5f5f5;
+            padding: 0.2rem 0.4rem; border-radius: 2px; font-size: 0.9rem;
+        }
+        pre { background: #f5f5f5; padding: 1rem; border-radius: 4px; overflow-x: auto; margin-bottom: 1.2rem; }
+        pre code { background: none; padding: 0; }
+
+        .formula {
+            background: #fafafa; border: 1px solid var(--border-color);
+            border-radius: 4px; padding: 1rem 1.2rem; margin: 1.2rem 0;
+            font-family: 'Courier New', monospace; font-size: 0.92rem;
+            line-height: 1.7; overflow-x: auto; color: #222;
+        }
+        .formula .lbl {
+            color: var(--text-secondary); font-family: 'Inter', sans-serif;
+            font-size: 0.8rem; display: block; margin-bottom: 0.4rem;
+        }
+
+        figure { margin: 1.8rem 0; }
+        figure img {
+            width: 100%; height: auto; display: block;
+            border: 1px solid var(--border-color); border-radius: 6px; background: #fff;
+        }
+        figcaption { font-size: 0.82rem; color: var(--text-secondary); margin-top: 0.6rem; text-align: center; }
+
+        table { width: 100%; border-collapse: collapse; margin: 1.4rem 0; font-size: 0.9rem; }
+        th, td { padding: 0.55rem 0.7rem; border-bottom: 1px solid var(--border-color); text-align: right; }
+        th:first-child, td:first-child { text-align: left; }
+        th { font-weight: 600; background: #f7f7f7; }
+        tr.highlight td { font-weight: 600; background: #f0f6ff; }
+        .caption { font-size: 0.82rem; color: var(--text-secondary); margin: -0.6rem 0 1.4rem; text-align: center; }
+
+        strong { font-weight: 600; }
+        em { font-style: italic; }
+
+        @media (max-width: 640px) {
+            h1 { font-size: 1.5rem; }
+            h2 { font-size: 1.1rem; }
+            .page-wrapper { padding: 0 0.5rem; }
+            .formula { font-size: 0.8rem; }
+            table { font-size: 0.8rem; }
+        }
+    </style>
+</head>
+<body>
+    <div class="page-wrapper">
+        <a href="https://www.sannipatel.me/blog.html" class="back-link">← Go back to blogs</a>
+
+        <h1>One Forward Pass: Rebuilding Jev's Architecture Bidirectionally</h1>
+
+        <div class="header-metadata">
+            <span class="metadata-tag">decision models</span>
+            <span class="metadata-tag">bidirectional attention</span>
+            <span class="metadata-tag">listwise scoring</span>
+            <span class="metadata-tag">proper scoring rules</span>
+            <span class="metadata-tag">calibration</span>
+        </div>
+
+        <hr>
+
+        <p>A decision model is a strange, useful thing. You hand it a <strong>state</strong> — a support ticket, a contract clause, a board position — and a set of <strong>questions</strong> over that state, and it hands back calibrated probabilities. It never writes a sentence. There is no sampling, no temperature at decode, no parsing a JSON blob out of prose. One forward pass, one distribution per question, done in tens of milliseconds.</p>
+
+        <p>That framing is worth taking seriously because it inverts the usual economics. Most "classify this with an LLM" systems pay generation costs for an answer that was always going to be one of five tokens, and then pay again in unreliability, because a probability recovered from a generated token is not a probability anyone should threshold on. A decision model gives you the distribution directly, and a distribution you can threshold is what turns a model into automation: <em>route this ticket automatically if p &gt; 0.96, otherwise send it to a human.</em></p>
+
+        <h2>What Jev is actually selling</h2>
+
+        <p>Jev is the system that made this concrete. It emerged from stealth as a "System One model" — explicitly not a chatbot — and what it's selling isn't intelligence. It's a set of properties a generative model can't really offer. Four of them, roughly in the order I'd rank them by how hard they are to copy:</p>
+
+        <table>
+            <thead>
+                <tr><th>Property</th><th>Claimed / measured</th><th>What a generative LLM offers</th></tr>
+            </thead>
+            <tbody>
+                <tr><td>Latency</td><td>70–500 ms end to end</td><td>seconds, plus decode variance</td></tr>
+                <tr><td>Price</td><td>$0.042 / M input tokens, output free</td><td>40–400× more, by their arithmetic</td></tr>
+                <tr><td>Type safety</td><td>schema-valid by construction — it cannot emit an invalid answer because it does not emit tokens</td><td>a parser, a retry loop, and a hope</td></tr>
+                <tr class="highlight"><td>Calibration</td><td>probabilities you can threshold; ECE ≈ 0.031 on a 1,200-item sample</td><td>a token log-prob that is not a belief</td></tr>
+            </tbody>
+        </table>
+        <div class="caption">The vendor's published figures alongside independently measured behaviour. Treat the pricing and speed multiples as marketing arithmetic; the calibration number is someone else's measurement.</div>
+
+        <p>At a glance the first three look like an efficiency story. I'd argue the moat is really the fourth row, and the first three are what make it affordable to lean on. A calibrated probability is what converts a model from an assistant into infrastructure: you set an error budget, threshold at it, automate everything above the line, and route the rest to a human. You can't really build that loop on a number scraped from a generated token, because that number isn't a belief about the world — it's a belief about the next token. Being fast and cheap is what lets you then call it five thousand times in a request without thinking about the bill.</p>
+
+        <p>And "five thousand" isn’t rhetorical. The most striking published property is that the request limit — roughly 65,536 tokens — counts the <strong>state once</strong>, no matter how many questions you attach to it. An independent black-box investigation (~10,000 API calls) fit a 23,000-token state with 5,000 questions inside that limit, which is only arithmetically possible if the state is not reprocessed per question. Re-encoding would have needed north of 100 million tokens. Adding questions, in the vendor's own words, "barely changes response time."</p>
+
+        <p>That one sentence is the whole architecture brief. It says the state is prefilled once and every question branches off the cached prefix. The same investigation pinned three more behaviours worth building toward: questions are <strong>isolated</strong> (a fact planted in the shared state reached an unrelated question ~90% of the time; the same fact planted in a sibling question reached it 0% of the time), the options within a question <strong>interact</strong> before the decision is made, and the billed <code>output_tokens</code> is a pure accounting artifact — it fits a fixed formula, does not vary with the answer, and does not correlate with latency. Nothing is being generated.</p>
+
+        <p>So the target is not "a classifier that is good at tickets." It is: one shared state, many isolated questions, options that see each other, no generation, and a probability at the end that someone is willing to put an error budget behind. The rest of this post is an attempt to get all of that out of a 1.7B open model at once — and specifically about one bet I made and then spent several days interrogating: <strong>a decision should be a single forward pass, and every candidate answer should be able to see every other candidate answer.</strong> That sounds obvious. It is not what the published reference implementations do, and the reasons they don't turn out to be excellent reasons. I'll walk through the mask that makes it possible, the loss that makes the probabilities honest, and the one measurement that still makes me uncomfortable.</p>
+
+        <h2>The shape of the problem</h2>
+
+        <p>The contract has three primitives, and every one of them reduces to a distribution over a candidate set:</p>
+
+        <pre><code>noul    yes / no                       -> P(yes)
+choice  1..255 named options           -> a distribution over options
+score   2..255 ordered levels          -> a distribution over levels,
+                                          plus expected level and variance</code></pre>
+
+        <p>So architecturally there is exactly one job: given a state and <code>N</code> candidate strings, produce <code>N</code> scores and softmax them. Everything interesting is in <em>how the candidates get encoded</em>, because that single choice determines the cost, the caching story, and whether the options can influence one another at all.</p>
+
+        <p>The obvious implementation — and the one the public pointwise reference uses — is one sequence per candidate. Concatenate the state with candidate <em>i</em>, run the backbone, read a scalar off a marker token, repeat <code>N</code> times, softmax at the end. It is simple, it is trivially order-invariant, and it has two properties that eventually get in the way:</p>
+
+        <ul>
+            <li><strong>The state is re-encoded <code>N</code> times.</strong> With a 1,400-token state and ten candidates you are pushing 14,000 tokens through a 1.7B backbone to answer one question. Measured duplication factor on that reference: <strong>6.7×</strong>.</li>
+            <li><strong>The candidates cannot interact.</strong> Each score is computed in ignorance of the others, and the softmax denominator cancels in any odds ratio. That means the model is, provably, <em>independent of irrelevant alternatives</em>: adding a new option can never change the relative odds of two existing ones.</li>
+        </ul>
+
+        <p>The second one is where this stops being an efficiency argument. The behaviour was measured against the real hosted system: adding a decoy option shifts the log-odds between two unrelated options by a mean of about <strong>−0.28</strong>, consistently, every time. Under pointwise-scoring-plus-softmax that shift is not merely unlikely, it is <em>mathematically impossible</em>. Whatever the real thing is doing, the options are reading each other inside the network.</p>
+
+        <blockquote>A behaviour your architecture assigns probability zero to isn’t a tuning problem — it’s a falsification. The pointwise design is a fine model of many things, and a provably wrong model of this one.</blockquote>
+
+        <h2>Why I went bidirectional</h2>
+
+        <p>Here's the awkward bit. <strong>The evidence favoured causal attention, and I built bidirectional anyway.</strong> Worth being precise about why, because "bidirectional is better" isn't the reason and was never true.</p>
+
+        <p>The decisive experiment is a reference-card probe: plant the one fact needed to answer a question inside a single option, and move it around.</p>
+
+        <table>
+            <thead>
+                <tr><th>Position of the planted fact</th><th>Accuracy</th></tr>
+            </thead>
+            <tbody>
+                <tr><td>Last option</td><td>16/16</td></tr>
+                <tr><td>First option</td><td>12/16</td></tr>
+                <tr><td>Middle option</td><td>11/16</td></tr>
+                <tr class="highlight"><td>Moved into the shared state</td><td>48/48</td></tr>
+            </tbody>
+        </table>
+        <div class="caption">Planted-fact probe against the hosted system. Symmetric attention over options predicts a flat column. This column is not flat.</div>
+
+        <p>A model whose options attend to each other <em>symmetrically</em> predicts roughly position-independent accuracy. What was actually observed is a strong monotone gradient — the last option is the best place to hide a fact, which is exactly what you would expect if option <em>i</em> can only see options <code>1…i−1</code>. That is a causal signature. If your goal is to reconstruct the original, you build the causal variant and stop.</p>
+
+        <p>My goal wasn't reconstruction. I wanted the fastest correct listwise scorer that still has the behaviour that matters, and I wanted to know what symmetry is actually worth. So here's what it buys — the one real reason, and two that sound better than they are:</p>
+
+        <h3>1. Every candidate sees the whole set — this is the real one</h3>
+
+        <p>Under a causal mask, candidate <em>i</em> sees candidates <code>1…i−1</code> only. Candidate 1 sees no siblings at all; it is scored <em>pointwise</em>, no matter how listwise the rest of the design is. The information available to each candidate is a strict function of its position, and only a final readout token positioned after everything sees the whole set.</p>
+
+        <p>That’s why causal designs tend to need a <strong>pointer head</strong> — a learned query at the readout position scoring each option's hidden state — rather than reading a scalar off each option directly. Under symmetry you don't need one, because every candidate's own position has already seen the entire set, so reading a scalar off each candidate is fair. Concretely: a <code>LayerNorm → Linear(2048, 1)</code> head, <strong>6,145 parameters</strong>, reused verbatim from the pointwise reference instead of a new pointer mechanism I would have to validate from scratch. Symmetry buys the readout.</p>
+
+        <h3>2. It removes the <em>structural</em> part of the order bias — but not the bias</h3>
+
+        <p>Causal makes the handicap architectural and monotone: candidate <code>N</code> is strictly better informed than candidate 1, always, by construction. Symmetry removes that. What it doesn’t remove is RoPE. The candidates still occupy distinct positions in the sequence, so permuting the option list still moves the scores. I'll come back to this one, because it got worse rather than better.</p>
+
+        <h3>3. It keeps the door to permutation invariance open</h3>
+
+        <p>Position tricks can buy invariance on top of a symmetric mask. Under causal, no position trick helps — nothing makes candidate 1 see candidate 2 when the mask forbids it. Whether that option is worth its price is still open, and I'll show the measurement where I tried to cash it in and failed.</p>
+
+        <p>What I won’t claim is that symmetry is <em>measured</em> to be better here. The clean <code>--regime causal</code> ablation on this stack was dropped, so the value of symmetry in this codebase is argued rather than demonstrated. The defensible version of the claim is narrow, so I'd rather keep it narrow.</p>
+
+        <h2>The mask is the architecture</h2>
+
+        <p>Plain bidirectional attention over the whole sequence — the vanilla encoder conversion — has a cost that doesn’t get mentioned much. Once the prefix attends to the candidates, <strong>the prefix's hidden states become a function of the candidate set</strong>. A cached prefix is no longer reusable, because a different candidate set produces different prefix activations. For the workload this model exists to serve — one large state, many questions over it — that’s a real loss: you’ve given up the biggest optimisation available.</p>
+
+        <p>So the default regime is not flat bidirectionality. It is a <strong>block mask</strong>: the prefix is causal-ish in the only sense that matters (it cannot look down at the candidates), while the candidates attend to the prefix and to each other, symmetrically.</p>
+
+        <div class="formula">
+<span class="lbl">One rule covers both axes (seg 0 = prefix; seg k = candidates of question k)</span>
+allow(q, k)  =  is_prefix(k)  or  seg(q) == seg(k)
+
+<span class="lbl">Truth table — P = prefix, C&#8321;/C&#8322; = candidates of two different questions</span>
+query \ key     P       C&#8321;      C&#8322;
+P              yes     no      no
+C&#8321;             yes     yes     no
+C&#8322;             yes     no      yes</div>
+
+        <p>That table is doing three jobs at once. Row <code>P</code> is prefix independence: prefill the state once, branch many times. Row <code>C&#8321;</code>, column <code>C&#8321;</code> is symmetric set interaction — the thing a pointwise scorer can’t have. And row <code>C&#8321;</code>, column <code>C&#8322;</code> is <strong>question isolation for free</strong>: with several questions packed into one sequence, each question becomes its own segment and the same single rule guarantees that a fact planted in one question's options cannot reach another, while a fact in the shared state reaches all of them.</p>
+
+        <p>That last property matters more than it looks. It’s the observed behaviour of the hosted system, and it’s what makes a multi-question request useful rather than a source of quiet cross-talk. Two things are asserted in tests rather than assumed:</p>
+
+        <ul>
+            <li><strong>Packed equals separate</strong> to <code>&lt; 1e-6</code>. A caller never has to care how their request was batched.</li>
+            <li><strong>A question cannot see a sibling</strong>: a secret planted in a sibling question's candidates moves the target question by <strong>exactly 0.0</strong> once batch shape is pinned, while the same fact placed in the shared state moves it by <code>1.4e-02</code>.</li>
+        </ul>
+
+        <p>Positions restart per question, so a question occupies the same positions whether it is asked alone or packed with eleven others. The payoff, measured on a 1,449-token state:</p>
+
+        <table>
+            <thead>
+                <tr><th>Questions</th><th>Packed tokens</th><th>Separate</th><th>Saving</th><th>Forward</th></tr>
+            </thead>
+            <tbody>
+                <tr><td>1</td><td>1,490</td><td>1,490</td><td>1.00×</td><td>21.1 ms</td></tr>
+                <tr><td>3</td><td>1,582</td><td>4,470</td><td>2.83×</td><td>20.2 ms</td></tr>
+                <tr><td>6</td><td>1,720</td><td>8,940</td><td>5.20×</td><td>23.4 ms</td></tr>
+                <tr class="highlight"><td>12</td><td>1,998</td><td>17,882</td><td>8.95×</td><td>29.8 ms</td></tr>
+            </tbody>
+        </table>
+        <div class="caption">Twelve questions for 1.4× the latency of one. The saving is structural, not a kernel trick.</div>
+
+        <p>The same structure shows up on the candidate axis. Scaling from 2 to 200 candidates costs <strong>5.3×</strong> the latency — 28.5 ms at 2 candidates, essentially unchanged at 50, 146 ms at 200. A pointwise scorer runs <code>N</code> passes, so its curve is roughly 100×.</p>
+
+        <h2>The loss: score the probability, not the answer</h2>
+
+        <p>The whole reason to build a decision model rather than a classifier is that you want the probability, not the argmax. So the objective has to be something that is <em>minimised by reporting your true belief</em>. That is the definition of a <strong>proper scoring rule</strong> (Gneiting &amp; Raftery, 2007), and it rules out most of the things people reach for first.</p>
+
+        <div class="formula">
+<span class="lbl">Log loss — negative log-likelihood of the gold candidate, masked over real slots</span>
+L_log   =  &#8722; log p_y ,        p = masked_softmax(z, candidate_mask)
+
+<span class="lbl">Brier — mean squared error against the one-hot target</span>
+L_brier =  &#8721;&#7522;  ( p&#7522; &#8722; 1[i = y] )&#178; &#183; mask&#7522;
+
+<span class="lbl">Soft log loss — cross-entropy against a target *distribution*</span>
+L_soft  =  &#8722; &#8721;&#7522;  t&#7522; &#183; log p&#7522;        (t from vote counts, teacher distributions, aggregate ratings)</div>
+
+        <p>Log loss and Brier are both proper; they differ in how hard they punish a confident mistake. Log loss is unbounded and will happily let one catastrophically confident error dominate a batch; Brier is bounded and gentler on the tail but pushes less hard on the well-calibrated bulk. Neither is the right default for all data, so both are implemented and the choice is <em>recorded in the run config rather than baked into the code</em>. That sounds like a small thing. It means that six months later the model card can say which one produced the checkpoint.</p>
+
+        <p>Three details that matter more than the choice between them:</p>
+
+        <ul>
+            <li><strong>Padded candidate slots get <code>-inf</code> logits and are excluded everywhere</strong>, never merely down-weighted. Down-weighting leaks a gradient into slots that do not exist, and with a variable candidate count from 2 to 255 that leak is not small.</li>
+            <li><strong>Soft targets are kept soft.</strong> Several sources ship a distribution — annotator vote counts, aggregate ratings, teacher probabilities. Collapsing those to an argmax throws away the only calibration signal the source actually provides, and calibration is the product.</li>
+            <li><strong>Accuracy is the guard, not the objective.</strong> If accuracy collapses, something upstream is broken. If accuracy is flat while the probability metrics improve, that's the result, not a disappointment.</li>
+        </ul>
+
+        <h3>The RL detour, and why it collapses back to the loss</h3>
+
+        <p>A sibling project in this space trains its decision model with something branded "RL from contrastive distillation — proper-scoring-rule rewards, GRPO-style policy gradient." I read the code, because the phrase "GRPO-style" is doing a lot of work in that sentence. Stripped to its arithmetic, the update is:</p>
+
+        <div class="formula">
+<span class="lbl">What the loop actually computes (G = 4 group samples, &#963;: 0.4 &#8594; 0.1)</span>
+&#949;     ~  N(0, &#963;&#178;)  ,  projected zero-mean over options
+z     =  logits.detach() + &#949;                    &#8592; the "action" is a perturbed logit vector
+q     =  softmax(z)
+r     =  log-score(q, y) + 0.75 &#183; spherical(q, y) + RPS(q, y)
+A     =  ( r &#8722; mean(r) ) / ( std(r) + &#949;&#8320; )        &#8592; group-mean baseline
+logp  =  &#8722; &#8214;z &#8722; logits&#8214;&#178; / (2&#963;&#178;)                  &#8592; Gaussian log-density
+loss  =  &#8722; mean(A &#183; logp)  +  1.0 &#183; soft_CE(logits, y)</div>
+
+        <p>This is <strong>Gaussian-smoothed REINFORCE</strong> — a score-function / evolution-strategies estimator in logit space with a group-mean baseline. The gradient reduces to <code>E[A · ε] / σ²</code>. It is "GRPO-style" only in that the baseline is a group mean: there is no importance ratio, no clipping, no KL to a reference policy, no trust region, and no sequential MDP. One on-policy group per update.</p>
+
+        <p>And here is the thing that matters, which has nothing to do with branding: <strong>the reward is differentiable.</strong> <code>q = softmax(logits + noise)</code> and the reward is a closed-form scoring rule over <code>q</code>. You can backpropagate through it exactly. The RL estimator is computing a strictly noisier version of the same gradient at four times the reward evaluations. Add that the supervised term in the same loss is soft cross-entropy at weight 1.0, and that the log-score component of the reward <em>is</em> cross-entropy, and the RL branch is contributing a noisy duplicate of a signal already present, plus two extra scoring terms.</p>
+
+        <p>The general rule here is easy to get backwards while RL is fashionable: <strong>a policy-gradient estimator buys you exactly one thing — the ability to optimise a reward you cannot differentiate through, or an action space that is sequential.</strong> When the reward is a closed-form function of your own softmax, you have neither problem. You have a loss function.</p>
+
+        <h3>Where the loss is genuinely wrong: the ordinal gap</h3>
+
+        <p>The clearest weak spot in the current checkpoint is the <code>score</code> primitive. Two families sit far below the rest — <code>relevance</code> at 0.45 accuracy against the pointwise reference's 0.6725, and a rubric-grading family at 0.4755 with macro F1 0.2244, collapsing onto one or two levels.</p>
+
+        <p>The cause isn’t mysterious. A <code>score</code> question carries <code>level_index</code> and <code>level_order</code> — the levels are <em>ordered</em>, "Completely incorrect" through "Completely correct" — and cross-entropy throws that ordering away entirely. When the truth is "Completely correct," plain CE penalises predicting "Mostly correct" <strong>exactly as hard</strong> as predicting "Completely incorrect." The model is given no reason to believe the levels lie on a line.</p>
+
+        <p>The fix is an ordinal-aware term, and there is a right and a wrong way to write it. The wrong way — the one that is tempting because it is one line — is to add the absolute error of the <em>expected level</em>, <code>|E[level] − y|</code>. That is not a proper scoring rule. It’s minimised by a point mass at the true level no matter how uncertain the model ought to be, so it trains away the calibration that is the whole point. The right way keeps the objective over the distribution:</p>
+
+        <div class="formula">
+<span class="lbl">Ranked probability score — proper, and ordering-aware (F = cumulative distribution)</span>
+RPS(p, y)  =  &#8721;&#8342;&#8331;&#8321;..K&#8722;&#8321;  ( F_p(k) &#8722; F_y(k) )&#178;  ,      F_p(k) = &#8721;&#7522;&#8804;&#8342; p&#7522;
+
+<span class="lbl">equivalently: Brier applied to every cumulative threshold "is the level &#8804; k?"</span></div>
+
+        <p>RPS is the ordinal generalisation of Brier: it scores the <em>cumulative</em> distribution at each threshold, so predicting an adjacent level costs one threshold's worth of error and predicting the far end costs all of them. It remains proper, so it does not trade calibration for ordering. This is built, not shipped — I am flagging it as the one concrete improvement still on the table rather than claiming it.</p>
+
+        <h2>Calibration is the product</h2>
+
+        <p>Everything above is about getting the architecture right. This section is about the thing the architecture is <em>for</em>, and it's where the most useful numbers in the project live.</p>
+
+        <p>Accuracy tells you how often the argmax is right. It tells you nothing about whether you can trust the number next to it. Calibration is the gap between "the model said 0.9" and "the model is right 90% of the time when it says 0.9", and it's the only property that lets someone downstream draw a line and automate above it. So it's worth measuring properly, in more than one way, on more than one seed.</p>
+
+        <p>Here's the full picture on the locked test split, across two seeds, against the pointwise reference:</p>
+
+        <table>
+            <thead>
+                <tr><th>Metric</th><th>Seed 0</th><th>Seed 1</th><th>Pointwise ref.</th></tr>
+            </thead>
+            <tbody>
+                <tr><td>Accuracy</td><td>0.7531</td><td>0.7381</td><td>0.7375</td></tr>
+                <tr><td>NLL</td><td><strong>0.6214</strong></td><td><strong>0.6451</strong></td><td>0.6787</td></tr>
+                <tr><td>Brier</td><td><strong>0.3283</strong></td><td><strong>0.3503</strong></td><td>0.3739</td></tr>
+                <tr><td>ECE(15), untempered</td><td>0.0399</td><td>0.0409</td><td>0.0534</td></tr>
+                <tr><td>ECE(15), after temperature</td><td>0.0399 <em>(T = 1.0)</em></td><td><strong>0.0309</strong> <em>(T = 1.08)</em></td><td>0.0534 <em>(T = 1.162)</em></td></tr>
+                <tr class="highlight"><td>Coverage @ ≤5% error</td><td><strong>0.4937</strong></td><td><strong>0.4442</strong></td><td>0.1913</td></tr>
+                <tr class="highlight"><td>Coverage @ ≤10% error</td><td><strong>0.6710</strong></td><td><strong>0.5774</strong></td><td>0.4763</td></tr>
+            </tbody>
+        </table>
+        <div class="caption">Two independent runs, locked test split read once each. Lower is better for NLL, Brier and ECE; higher is better for coverage.</div>
+
+        <p>Three things I'd pull out of that table.</p>
+
+        <p><strong>The accuracy column is flat and the probability columns are not.</strong> Seed 1 is actually a shade <em>less</em> accurate than the pointwise reference (0.7381 vs 0.7375, which is a tie), and still beats it by 24% on NLL, 6% on Brier, and 42% on ECE after temperature. The model isn't getting more answers right. It's getting the confidence on those answers right, which is a different and — for this use case — more valuable thing.</p>
+
+        <p><strong>Coverage is the version of this that a product person can read.</strong> Coverage at a ≤5% error budget is just: sort every decision by confidence, walk down the list, and stop when your running error rate hits 5%. What fraction did you get through? Seed 0 gets through <strong>49.4%</strong> of the volume; the pointwise reference gets through <strong>19.1%</strong>. Same corpus, same error budget, 2.6× the work automated. Seed 1 is lower at 44.4% but still 2.3×, so the effect survives a seed change even though the margin moves.</p>
+
+        <p><strong>Seed 0 needed no temperature at all.</strong> The fitted correction was <code>T = 1.0</code> — the checkpoint came out of training calibrated, which is the outcome you want and not one you can count on. Seed 1 needed a mild <code>T = 1.08</code> and improved from 0.0409 to 0.0309 (a 24% cut) on the test split, and from 0.0197 to 0.0176 on the calibration split it was fitted on. For reference, the hosted system measures around 0.031 ECE on a public sample, so a 1.7B open model landing in the same neighbourhood is the part of this I find most encouraging.</p>
+
+        <h3>The temperature that backfired</h3>
+
+        <p>One detour worth sharing, because the textbook advice led me straight into it.</p>
+
+        <p>Post-hoc temperature scaling is the standard trick: fit a single scalar <code>T</code> on a held-out split, divide the logits by it, ship. The default is to fit <code>T</code> by minimising NLL. On this model that default backfired — the search returned <code>T = 3.1857</code>, and applying it took calibration ECE from 0.0439 to <strong>0.1817</strong>. Four times worse than doing nothing.</p>
+
+        <p>The mechanism is worth understanding, because it'll bite anyone with a similar error profile. NLL is dominated by its worst cases. If you have a heavy confidently-wrong tail, the NLL optimum is reached by flattening <em>everything</em>, including the well-calibrated bulk, which gets dragged into systematic under-confidence. NLL went down. Calibration — the whole reason you're scaling the temperature — went sharply up.</p>
+
+        <div class="formula">
+<span class="lbl">The two objectives disagree, so fit both and let the metric you care about pick</span>
+T_nll  =  argmin_T  NLL( softmax(z / T), y )       &#8594;  1.0555   (seed 1)
+T_ece  =  argmin_T  ECE&#8321;&#8325;( softmax(z / T), y )     &#8594;  1.0802   (seed 1)
+
+apply  T*  =  whichever of (T_nll, T_ece, 1.0) gives the lowest calibration-split ECE
+              &#8592; including 1.0, which was the right answer for seed 0</div>
+
+        <p>Two practical notes. First, always keep <code>1.0</code> in the candidate set — "leave it alone" is a real answer and it won seed 0 outright. Second, <strong>ECE is binned and therefore non-convex</strong>, so a bracketing search that assumes unimodality is the wrong tool and will settle somewhere arbitrary. A grid is cheap when you're fitting one scalar. And report the fitted value under both objectives, so when they disagree by 0.025 you can see it rather than wonder.</p>
+
+        <h2>Results</h2>
+
+        <p>Full fine-tune, two epochs, 1.7B backbone, ~102k decisions from fourteen public sources, one A100. The comparison is against the published pointwise reference on the same corpus construction, with its hyperparameters held fixed so the difference is architectural.</p>
+
+        <table>
+            <thead>
+                <tr><th>Metric</th><th>Listwise (this)</th><th>Pointwise reference</th><th></th></tr>
+            </thead>
+            <tbody>
+                <tr><td>Accuracy</td><td>0.7531</td><td>0.7375</td><td>CIs overlap</td></tr>
+                <tr><td>Macro F1</td><td>0.6168</td><td>0.6165</td><td>even</td></tr>
+                <tr><td>NLL</td><td><strong>0.6214</strong></td><td>0.6787</td><td>−8.4%</td></tr>
+                <tr><td>Brier</td><td><strong>0.3283</strong></td><td>0.3739</td><td>−12.2%</td></tr>
+                <tr><td>ECE(15)</td><td><strong>0.0399</strong></td><td>0.0534</td><td>−25%</td></tr>
+                <tr><td>Temperature needed</td><td><strong>1.0</strong></td><td>1.162</td><td>calibrated as-is</td></tr>
+                <tr class="highlight"><td>Coverage @ ≤5% error</td><td><strong>0.4937</strong></td><td>0.1913</td><td><strong>2.6×</strong>, non-overlapping</td></tr>
+                <tr><td>Sequences per decision</td><td><strong>1</strong></td><td>N</td><td></td></tr>
+                <tr><td>Latency, 2 → 200 candidates</td><td><strong>5.32×</strong></td><td>~100×</td><td></td></tr>
+                <tr><td>IIA mean absolute log-odds shift</td><td>0.848</td><td>exactly 0</td><td>by construction</td></tr>
+            </tbody>
+        </table>
+        <div class="caption">Locked test split, 1,997 decisions, read once after model selection.</div>
+
+        <p>The first row isn’t the interesting one. <strong>Accuracy 0.7531 vs 0.7375 is not a result</strong> — the 95% intervals are [0.7342, 0.7720] and [0.7054, 0.7686] and they overlap comfortably, and the two corpora differ by 0.085 in their choice/noul mix anyway. I’d rather not quote it as a win.</p>
+
+        <p>The row that matters is <strong>coverage at a ≤5% error budget: 0.4937 against 0.1913</strong>, with non-overlapping intervals. That is the question a decision model is actually asked in production — <em>what fraction of this volume can I automate without exceeding my error budget?</em> — and the answer is 2.6× as much, from a model that is not more accurate. Better-ordered probabilities, not better answers. NLL, Brier and ECE all move in the same direction and say the same thing, and the checkpoint needs no temperature correction at all.</p>
+
+        <p>So the defensible claim is: <strong>matches the pointwise reference on accuracy, is clearly better calibrated, automates 2.6× the volume at the same error rate, and does it in one forward pass instead of N.</strong></p>
+
+        <h2>The number I'm not happy about</h2>
+
+        <p>Permuting the option list flips the argmax <strong>52%</strong> of the time. Mean probability delta under permutation went from 0.142 to 0.3868 — it got <em>worse</em>, not better, when I removed the causal mask.</p>
+
+        <p>That is the uncomfortable symmetry of this design: <strong>order sensitivity and set interaction come from the same mechanism.</strong> Letting candidates read each other in-sequence is what produces the IIA violation I wanted, and it is also what lets their positions matter. Removing the causal mask does not remove RoPE.</p>
+
+        <p>I tried to cash in the option that symmetry supposedly bought me — per-candidate position restart, so every candidate occupies the same position range and permutation cannot change anything. The invariance was real:</p>
+
+        <table>
+            <thead>
+                <tr><th>Configuration</th><th>Readout spread</th><th>Permutation drift</th></tr>
+            </thead>
+            <tbody>
+                <tr><td>Continuous positions</td><td>7.8e-01</td><td>4.1e-02</td></tr>
+                <tr><td>Position restart, delimiter readout</td><td><strong>4.8e-07</strong> (collapsed)</td><td>6.0e-07</td></tr>
+                <tr><td>Restart + per-candidate offset of 1</td><td>1.0e+00</td><td>not invariant</td></tr>
+                <tr class="highlight"><td>Restart + content-token readout</td><td>3.2e+00</td><td>6.0e-07</td></tr>
+            </tbody>
+        </table>
+        <div class="caption">Row 2 is the trap: exact permutation invariance, and completely useless.</div>
+
+        <p>Row 2 is the most instructive line in this post. Permutation drift <code>6.0e-07</code> is float32 epsilon — perfect invariance. It’s also <strong>vacuous</strong>. With the readout taken at a shared delimiter token, every candidate's readout token has the same token id, the same position after restart, and — under the block mask — the same set of visible keys. An identical query over identical keys returns an identical vector, so candidates of equal token length score <em>exactly the same</em>. Position was the only thing distinguishing those readout tokens, and I’d just removed it.</p>
+
+        <p>My test asserted invariance without asserting that the scores stayed <em>distinct</em>. It passed. It was measuring a model that had stopped discriminating. The candidate interaction inside the backbone survived restart perfectly well — a candidate's hidden state still moves by <code>7.6e-01</code> when a sibling's text changes — so the collapse is entirely in the readout, which is the only place that is easy to not look at.</p>
+
+        <blockquote>An invariance test that does not also test for non-degeneracy will eventually pass on a model that outputs a constant. Every symmetry assertion needs a liveness assertion next to it.</blockquote>
+
+        <p>The working combination is row 4: restart <em>plus</em> reading at each candidate's own last content token, whose query genuinely differs per candidate. Exact invariance and distinct scores. The cost is abandoning the reused readout convention and retraining the head — which is why it is deferred rather than shipped, and why the option-order sensitivity is asserted in a test of its own, so that nobody reads the architecture diagram and assumes invariance for free.</p>
+
+        <p>Worth noting what this does <em>not</em> mean. A public sibling design gets permutation invariance by keeping candidates in separate sequences and adding a small set-attention head over the pooled per-candidate vectors — invariant by construction, because the set head has no positional encoding. So invariance is not the price of set interaction. It is the price of <strong>in-sequence</strong> set interaction. That is a narrower and more interesting trade than "you can't have both."</p>
+
+        <h2>What it adds up to</h2>
+
+        <p>Four axes, and every real design in this space picks a different corner:</p>
+
+        <table>
+            <thead>
+                <tr><th>Design</th><th>Sequences / decision</th><th>Where options interact</th><th>Option order</th><th>State duplication</th></tr>
+            </thead>
+            <tbody>
+                <tr><td>Pointwise reference</td><td>N</td><td>nowhere</td><td>invariant</td><td>6.7×</td></tr>
+                <tr><td>Pointwise + set head</td><td>N</td><td>post-hoc, 128-d</td><td>invariant</td><td>~N</td></tr>
+                <tr><td>Single-sequence, causal</td><td>1</td><td>in-backbone, asymmetric</td><td>sensitive</td><td>~1</td></tr>
+                <tr class="highlight"><td>Single-sequence, block-bidirectional</td><td><strong>1</strong></td><td>in-backbone, symmetric</td><td>sensitive (0.52)</td><td><strong>~1</strong></td></tr>
+            </tbody>
+        </table>
+
+        <p>There is no dominant row. Invariance costs you either in-sequence interaction or <code>N×</code> compute; symmetric interaction costs you order sensitivity and, unless you build the block mask, prefix caching; causal interaction gives you prefix caching for free but makes candidate 1 structurally poorer than candidate <code>N</code> and forces a pointer head to compensate. Picking a corner is the design work. The failure mode is pretending your corner is free — that’s how you end up with a test suite happily certifying a constant function.</p>
+
+        <p>What I'd carry into the next one of these: the mask <em>is</em> the architecture, so write it explicitly and assert it rather than inheriting whatever the framework gives you by default. Train on a proper scoring rule and record which one. Reach for a policy gradient only when the reward is genuinely non-differentiable — otherwise you are paying four reward evaluations for a noisier copy of a gradient you could have taken exactly. And pair every invariance assertion with a liveness assertion, because a model that has stopped discriminating satisfies every symmetry you can name.</p>
+
+    </div>
+</body>
+</html>
