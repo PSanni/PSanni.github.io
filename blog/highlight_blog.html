@@ -1,0 +1,261 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Highlight: Teaching a Search Result What to Keep</title>
+<meta name="description" content="Highlight reuses ColBERT token interactions for extractive context compression. The architecture, coverage-based selection, and performance of compact, source-grounded highlights.">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&amp;display=swap" rel="stylesheet">
+<style>
+        :root {
+            --text-primary: #1a1a1a;
+            --text-secondary: #666;
+            --bg-primary: #ffffff;
+            --border-color: #e0e0e0;
+            --accent-color: #0066cc;
+            --blockquote-bg: #f5f5f5;
+        }
+
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        html, body {
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+            color: var(--text-primary);
+            background-color: var(--bg-primary);
+            line-height: 1.6;
+        }
+
+        body { padding: 2rem 1rem; }
+        .page-wrapper { max-width: 700px; margin: 0 auto; }
+
+        .back-link {
+            display: inline-block; margin-bottom: 2rem;
+            color: var(--accent-color); text-decoration: none; font-size: 0.95rem;
+        }
+        .back-link:hover { text-decoration: underline; }
+
+        h1 { font-size: 2rem; font-weight: 700; margin-bottom: 1.5rem; line-height: 1.3; }
+
+        .header-metadata {
+            display: flex; gap: 1rem; flex-wrap: wrap;
+            margin-bottom: 2rem; font-size: 0.85rem; color: var(--text-secondary);
+        }
+        .metadata-tag { background: #f0f0f0; padding: 0.3rem 0.6rem; border-radius: 3px; }
+
+        hr { border: none; height: 1px; background: var(--border-color); margin: 2rem 0; }
+
+        h2 { font-size: 1.4rem; font-weight: 700; margin-top: 2.5rem; margin-bottom: 1.2rem; }
+        h3 { font-size: 1.1rem; font-weight: 600; margin-top: 1.8rem; margin-bottom: 0.8rem; }
+
+        p { margin-bottom: 1.2rem; color: var(--text-primary); text-align: justify; }
+
+        blockquote {
+            border-left: 4px solid var(--accent-color); background: var(--blockquote-bg);
+            padding: 1rem 1.2rem; margin: 1.5rem 0; font-style: italic; color: var(--text-secondary);
+        }
+
+        ul, ol { margin-left: 1.5rem; margin-bottom: 1.2rem; }
+        li { margin-bottom: 0.5rem; }
+
+        code {
+            font-family: 'Courier New', monospace; background: #f5f5f5;
+            padding: 0.2rem 0.4rem; border-radius: 2px; font-size: 0.9rem;
+        }
+        pre { background: #f5f5f5; padding: 1rem; border-radius: 4px; overflow-x: auto; margin-bottom: 1.2rem; }
+        pre code { background: none; padding: 0; }
+
+        .formula {
+            background: #fafafa; border: 1px solid var(--border-color);
+            border-radius: 4px; padding: 1rem 1.2rem; margin: 1.2rem 0;
+            font-family: 'Courier New', monospace; font-size: 0.92rem;
+            line-height: 1.7; overflow-x: auto; color: #222;
+        }
+        .formula .lbl {
+            color: var(--text-secondary); font-family: 'Inter', sans-serif;
+            font-size: 0.8rem; display: block; margin-bottom: 0.4rem;
+        }
+
+        figure { margin: 1.8rem 0; }
+        figure img {
+            width: 100%; height: auto; display: block;
+            border: 1px solid var(--border-color); border-radius: 6px; background: #fff;
+        }
+        figcaption { font-size: 0.82rem; color: var(--text-secondary); margin-top: 0.6rem; text-align: center; }
+
+        table { width: 100%; border-collapse: collapse; margin: 1.4rem 0; font-size: 0.9rem; }
+        th, td { padding: 0.55rem 0.7rem; border-bottom: 1px solid var(--border-color); text-align: right; }
+        th:first-child, td:first-child { text-align: left; }
+        th { font-weight: 600; background: #f7f7f7; }
+        tr.highlight td { font-weight: 600; background: #f0f6ff; }
+        .caption { font-size: 0.82rem; color: var(--text-secondary); margin: -0.6rem 0 1.4rem; text-align: center; }
+
+        strong { font-weight: 600; }
+        em { font-style: italic; }
+
+        @media (max-width: 640px) {
+            h1 { font-size: 1.5rem; }
+            h2 { font-size: 1.1rem; }
+            .page-wrapper { padding: 0 0.5rem; }
+            .formula { font-size: 0.8rem; }
+            table { font-size: 0.8rem; }
+        }
+    
+.table-scroll { overflow-x: auto; margin-bottom: 1.2rem; }
+.table-scroll table { min-width: 560px; }
+p { overflow-wrap: anywhere; }
+@media (max-width: 640px) { p { text-align: left; } }
+</style>
+</head>
+<body>
+<main class="page-wrapper">
+<a href="../blog.html" class="back-link">← Go back to blogs</a>
+<article>
+<h1>Highlight: Teaching a Search Result What to Keep</h1>
+
+<div class="header-metadata"><span class="metadata-tag">late interaction</span><span class="metadata-tag">extractive compression</span><span class="metadata-tag">ColBERT</span><span class="metadata-tag">RAG</span><span class="metadata-tag">evidence selection</span></div><hr>
+
+<p>In my earlier post, <a href="frontier_retrieval_rl.html">A Few Hundred Dollars for a Frontier-Class Search Agent</a>, I described how I trained a 4B model to search for evidence and rank documents. That model is the agentic ranker in my search stack.</p>
+
+<p>The workflow begins with ColBERT-powered hybrid retrieval over a corpus of 1M documents. From the retrieved candidates, my 4B agentic search model ranks the top 10 documents. Highlight then prunes those documents in the same call, and the pruned documents go to a downstream LLM to generate the answer.</p>
+
+<p>This is the next question after learning to rank: once I have the right documents, how much of each should I return? A relevant page can contain navigation, repeated descriptions, background, and perhaps one sentence with the fact the reader needs. Ranking puts the page in the right place. Highlight determines which regions to carry forward.</p>
+
+<p>Given a query and a ranked document, Highlight extracts short regions of the original text and attaches them back to the result. The pruned document is then passed to the downstream LLM, with the source available when more context is needed. In the answer-quality evaluation later in this post, a separate reader generates the answers; those scores measure the usefulness of the returned context, rather than answer generation by the 4B ranker.</p>
+
+<p>End-to-end latency covers that entire path: search over the 1M-document corpus → 4B model ranking the top 10 → Highlight pruning → downstream LLM answer generation.</p>
+
+<p>The approach is to reuse the token interactions behind ColBERT retrieval. Instead of treating relevance as one number per document, I inspect which document tokens match which query tokens, then select a compact set of spans. The initial selector needs no additional training. I also test a small learned head that decides which span to add and when to stop.</p>
+
+<p>The headline result: Highlight retains <strong>99.61% of the encoded-document relevance score</strong> while selecting just <strong>6.62% of the original document characters</strong>—a <strong>93.38% reduction in source text</strong>. The core selector achieves this without training an additional model. It turns the fine-grained signal behind retrieval into a compact view of what the agent should read next. The <a href="#benchmark-one-what-survives-in-the-highlights">span-selection results below</a> report both measurements in the Highlight row.</p>
+
+<p>The central idea is simple: <strong>the same token interactions that tell me which document is relevant can tell me which parts of that document to keep.</strong> This post walks through the architecture, the selection rule, and the performance numbers, including the tradeoff between compression and downstream answer quality.</p>
+
+<h2>The interface: carry evidence forward</h2>
+
+<p>Highlight operates after retrieval and agentic ranking. Its input is a query plus a result object containing source text. Its output keeps that object and adds extracted text and relevance scores.</p>
+
+<pre><code>query
+    → hybrid search over 1M documents
+    → 4B agentic model ranks the top 10
+    → Highlight prunes the ranked documents
+    → downstream LLM generates the answer</code></pre>
+
+<p>The selected text is copied from the source. Separate regions are rendered in source order with omission markers between them. This gives the consumer a short view that remains traceable to the original document. Extraction avoids generating new factual wording, although removing surrounding context can still change how a sentence is understood.</p>
+
+<p>This interface also keeps the experiment focused. I am measuring what to retain from retrieved material. Retrieval quality, answer generation, and evidence selection affect one another, but each needs its own evaluation.</p>
+
+<h2>The signal: open up the relevance score</h2>
+
+<p>ColBERT represents the query and document as token embeddings. Each query token finds its strongest match among document tokens; summing those maxima gives the document score.</p>
+
+<pre><code>M[i,j] = similarity(query_token_i, document_token_j)
+
+Score(Q,D) = Σ_i max_{j ∈ D} M[i,j]</code></pre>
+
+<p>For highlighting, I restrict the same matrix to a candidate span. No new encoder pass is needed to score each candidate once the matrix exists.</p>
+
+<pre><code>coverage_i(S) = max_{j ∈ S} M[i,j]
+
+Score(Q,S) = Σ_i coverage_i(S)</code></pre>
+
+<p>The coverage vector matters more than the scalar score. Two spans may both match the same entity strongly. Selecting both could spend the budget repeating one aspect of the question. Another span may add a date, relationship, or technical detail the first span misses. Keeping coverage per query token lets the selector distinguish additional coverage from repetition.</p>
+
+<p>The pipeline uses PyLate embeddings and FastPlaid to expose these interactions. Sentence pruning can also work directly from a query–document similarity matrix. In both cases, token-level matching becomes an input to context selection.</p>
+
+<h2>The selector: spend the budget on new coverage</h2>
+
+<p>The window-based baseline generates candidate regions at several token lengths. In the span-selection evaluation, these are <strong>12-, 24-, and 48-token windows</strong>, with stride <strong>8</strong>. Each candidate has source offsets and a coverage vector.</p>
+
+<p>The greedy selector maintains the best coverage already supplied for each query token. It chooses a non-overlapping span according to how much new coverage it adds, divided by a length penalty.</p>
+
+<pre><code>current_i = best coverage for query token i so far
+
+gain(S) = Σ_i [max(current_i, coverage_i(S)) − current_i]
+
+value(S) = gain(S) / token_length(S)^α</code></pre>
+
+<p>A character budget constrains the selected spans. The exponent controls the preference for compact regions; the comparison uses <strong>α = 0.7</strong>. Selection ends when the remaining candidates cannot fit or cannot add enough coverage. Chosen regions are then ordered and rendered from the source.</p>
+
+<p>This coverage objective gives the selector a concrete reason to prefer complementary spans. It rewards a region for adding something the selected text has not already covered, keeping the budget focused on new information.</p>
+
+<p>Highlight also supports a threshold strategy: score each document token by its strongest query-token similarity, choose separated salient positions, expand context around them, and merge nearby spans. The performance numbers below use the <strong>greedy coverage selector</strong>.</p>
+
+<h2>Keeping every highlight anchored to its source</h2>
+
+<p>The interaction matrix uses the encoder&#x27;s document-token sequence. Source text uses character offsets. Those sequences diverge when the model adds special tokens, masks punctuation, or truncates the document.</p>
+
+<p>Highlight therefore maps the model&#x27;s retained token positions back to character offsets using the corresponding tokenizer and model behavior. A matrix column must point to the text that produced that embedding. This alignment keeps the extracted regions tied to the source text.</p>
+
+<p>The span evaluation uses a <strong>512-token document limit</strong> and a <strong>32-token query limit</strong>. Relevance preservation is measured against the encoded document representation; retained characters are measured against the original source text. These definitions keep the two performance measures precise when a source extends beyond the encoded region.</p>
+
+<h2>Sentence-level pruning: keep readable evidence</h2>
+
+<p>Short token windows can be awkward evidence for a reader. The sentence-pruning experiment keeps complete sentences instead. It splits the passage, maps tokens to sentence spans, and scores each sentence by restricted MaxSim. The saved answer-evaluation runs use square-root length normalization.</p>
+
+<pre><code>sentence_score(s) = [Σ_i max_{j ∈ s} M[i,j]] / √token_count(s)</code></pre>
+
+<p>The default relevance signal is <strong>leave-one-in</strong>: how well does this sentence match the query on its own? Leave-one-out measures something different: how much does the passage score fall when I remove the sentence?</p>
+
+<p>The distinction matters with repeated evidence. If two sentences contain the same relevant fact, dropping either can leave the passage score almost unchanged because the other sentence supplies the maxima. Low leave-one-out importance does not imply that both sentences can be removed together. Scoring each independently keeps relevant sentences eligible even when their evidence appears elsewhere in the passage.</p>
+
+<p>Selection uses an adaptive gap in the ranked sentence scores rather than a fixed threshold shared across queries. The implementation constrains eligible cut positions and has a fallback when the scores lack a clear gap. The balanced preset searches within approximately <strong>30–65%</strong> retained sentence ranks; the conservative preset uses <strong>70–95%</strong>. These control sentence selection, so actual retained character fractions differ.</p>
+
+<h2 id="benchmark-one-what-survives-in-the-highlights">Benchmark one: what survives in the highlights?</h2>
+
+<p>I evaluate span selection on SimpleQA-derived retrieved contexts, with a held-out split by source question. Verbatim answer matches are expanded to sentence-like boundaries to create silver evidence labels. The evaluation measures how well selected highlights recover those answer-bearing regions.</p>
+
+<p>Precision, recall, and F1 below measure <strong>character overlap with those silver evidence spans</strong>, averaged per document. Reader-answer accuracy is evaluated separately below. “Retained chars” is selected source characters divided by original document characters; lower means stronger compression. The learned row averages three training seeds on the same held-out split. The matched baseline receives each learned selection&#x27;s per-document character allowance and can use less if its available windows do not fit.</p>
+
+<div class="table-scroll" tabindex="0" role="region" aria-label="Span-selection benchmark results"><table><thead><tr><th scope="col">Method</th><th scope="col">Evidence precision</th><th scope="col">Evidence recall</th><th scope="col">Evidence F1</th><th scope="col">Retained chars</th><th scope="col">Encoded relevance retained</th></tr></thead><tbody><tr><td>Learned decision head, three-seed mean</td><td>0.138</td><td>0.307</td><td>0.168</td><td>4.88%</td><td>97.52%</td></tr><tr><td>MaxSim, matched per-document allowance</td><td>0.162</td><td>0.379</td><td>0.192</td><td>4.63%</td><td>98.95%</td></tr><tr class="highlight"><td>Highlight (MaxSim, 320-character budget)</td><td>0.133</td><td>0.433</td><td>0.178</td><td>6.62%</td><td>99.61%</td></tr><tr><td>Oracle candidate selector</td><td>0.727</td><td>0.955</td><td>0.797</td><td>3.49%</td><td>92.26%</td></tr></tbody></table></div>
+
+<p>“Encoded relevance retained” is the selected spans’ MaxSim score divided by the full encoded-document MaxSim score, averaged per document. For the Highlight row, <strong>100% − 6.62% = 93.38% less source text</strong>, while <strong>99.61% of encoded relevance is retained</strong>.</p>
+
+<p>The training-free selector retains <strong>99.61% of the encoded-document MaxSim score</strong> at <strong>6.62% character retention</strong>, with <strong>0.433 evidence recall</strong> and <strong>0.178 evidence F1</strong>. At a matched output allowance, it reaches <strong>0.192 evidence F1</strong>. That makes coverage-based selection a strong starting point for compact highlights without an additional trained model.</p>
+
+<p>The label-informed oracle reaches <strong>0.797 evidence F1</strong> at <strong>3.49% character retention</strong>, preserving <strong>92.26%</strong> of the encoded relevance score. It is a diagnostic reference that shows useful answer-bearing regions are available in the candidate pool. The difference also motivates evaluating evidence recovery alongside relevance preservation: the two objectives emphasize different aspects of the text.</p>
+
+<h2>Extending the selector with a learned decision head</h2>
+
+<p>The learned experiment freezes ColBERT. A small neural head consumes <strong>33 summary features</strong> describing a candidate&#x27;s coverage, marginal gains, position, length, remaining budget, and selection history. A shared two-layer network with width <strong>64</strong> produces action and evidence readouts.</p>
+
+<p>At each step it predicts whether to stop. If it continues, it selects a candidate span. Training combines a stop/choice log loss, a Brier loss for soft evidence membership, and expected decision regret under the oracle utility. The selector is allowed up to <strong>four spans</strong> under a <strong>320-character budget</strong>.</p>
+
+<p>The head learns when to add a span and when to stop. Its mean evidence F1 is <strong>0.168</strong>, compared with <strong>0.192</strong> for MaxSim at a matched allowance. The comparison favors keeping the training-free coverage selector as the core approach: additional model complexity has not improved selection quality in this configuration.</p>
+
+<p>The learned extension gives me a way to explore evidence-aware selection while keeping ColBERT frozen. A natural next step is to expose token identity or embeddings alongside coverage summaries, then test whether those features improve the choice of answer-bearing spans.</p>
+
+<h2>Benchmark two: can the reader still answer?</h2>
+
+<p>The sentence-pruning evaluation uses a separate answer-generating reader to measure how raw and pruned contexts support correct answers. The 4B agentic search model remains the document ranker. The table compares accuracy and retained context. The raw-context baseline shows the accuracy range across runs. Relative accuracy drop is calculated against each run’s own raw baseline: (raw accuracy − pruned accuracy) / raw accuracy. Accuracy for the conservative runs includes corrections to exact-match responses that the automated grader had rejected.</p>
+
+<div class="table-scroll" tabindex="0" role="region" aria-label="Benchmark results"><table><thead><tr><th scope="col">Run / context</th><th scope="col">Answer accuracy</th><th scope="col">Relative accuracy drop</th><th scope="col">Retained chars</th></tr></thead><tbody><tr><td>Raw context baseline</td><td>70–80%</td><td>0%</td><td>100%</td></tr><tr><td>Balanced / pruned</td><td>30%</td><td>57.1%</td><td>36.47%</td></tr><tr><td>Conservative / pruned</td><td>60%</td><td>25.0%</td><td>81.70%</td></tr><tr><td>Additional conservative run / pruned</td><td>60%</td><td>25.0%</td><td>81.43%</td></tr></tbody></table></div>
+
+<p>Balanced pruning removes <strong>63.53% of context characters</strong>. Answer accuracy moves from <strong>70% to 30%</strong>, a <strong>57.1% relative accuracy drop</strong> against its raw-context baseline, making this the more aggressive compression setting.</p>
+
+<p>Conservative pruning keeps about <strong>81% of context characters</strong> and achieves <strong>60% answer accuracy</strong>, compared with <strong>80%</strong> for raw context: <strong>75% of baseline accuracy retained</strong>, or a <strong>25% relative accuracy drop</strong>.</p>
+
+<p>These results make the operating tradeoff explicit. More aggressive pruning delivers greater context reduction; conservative pruning retains more answer quality. Relevance preservation, evidence recovery, and reader accuracy measure different parts of that tradeoff.</p>
+
+<p><strong>Model context.</strong> These experiments used a relatively small late-interaction model, whose capacity may contribute to the observed answer-accuracy tradeoff. I expect Highlight to achieve a stronger overall accuracy–compression tradeoff when paired with a larger late-interaction model and integrated with my trained 4B agentic ranker. Better evidence ranking and selection should give the downstream reader more useful context. That expected improvement remains to be measured in a direct comparison.</p>
+
+<h2>Reuse the computation behind retrieval</h2>
+
+<p>If a retrieval system already exposes ColBERT interactions, Highlight can score candidate regions without another neural model pass. One representation supports document relevance and the finer decision about which text to carry forward.</p>
+
+<p>The standalone pipeline obtains its own embeddings and builds a FastPlaid index. Integrating Highlight with cached retrieval representations lets the selection stage reuse that work. The benefit comes from making the token interactions useful twice: first to find relevant material, then to shape the context passed to the reader.</p>
+
+<h2>Where Highlight goes next</h2>
+
+<p>The training-free selector gives me a clear foundation: compact, source-grounded highlights with high relevance preservation. The next step is to bring evidence recovery and reader accuracy directly into the selection objective, while preserving the simplicity of reusing ColBERT interactions.</p>
+
+<p>That means comparing selectors at matched output lengths, enriching the learned head with token-level information, and evaluating the complete retrieval-to-answer path. A reader that needs additional context should also be able to expand a highlight into the surrounding source text. Highlight&#x27;s source offsets make that a natural extension of the interface.</p>
+
+<h2>The point of Highlight</h2>
+
+<p>Highlight turns a document-level relevance score into a practical decision about what an agent reads. The core selector retains <strong>99.61% of encoded relevance</strong> while removing <strong>93.38% of original source characters</strong>, without training an additional model.</p>
+
+<p>The architecture is compact: expose the token interactions, score candidate regions, select complementary coverage under a budget, and return exact extracts in source order. The result is a controllable layer between retrieval and reasoning—one that makes context selection explicit, measurable, and reusable across search workflows.</p>
+</article>
+</main>
+</body>
+</html>
